@@ -1,0 +1,97 @@
+name: career-pilot
+
+x-api-env: &api-env
+  APP_ENV: development
+  APP_SECRET_KEY: ${APP_SECRET_KEY:-development-only-secret-change-me-now}
+  DATABASE_URL: postgresql+asyncpg://career:career@postgres:5432/career
+  DATABASE_URL_SYNC: postgresql+psycopg://career:career@postgres:5432/career
+  REDIS_URL: redis://redis:6379/0
+  CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+  WEB_ORIGIN: http://localhost:3000
+  OBJECT_STORAGE_ENDPOINT: http://object-storage:9090
+  OBJECT_STORAGE_PUBLIC_ENDPOINT: http://localhost:9090
+  OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-career-local}
+  OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY:-career-local-secret}
+  CLAMAV_HOST: clamav
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: {POSTGRES_DB: career, POSTGRES_USER: career, POSTGRES_PASSWORD: career}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U career -d career"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports: ["55432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes", --maxmemory-policy, noeviction]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports: ["56379:6379"]
+
+  object-storage:
+    image: adobe/s3mock:5.2.3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: career-quarantine,career-documents
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes: [object-data:/s3mockroot]
+    healthcheck:
+      test: [CMD, wget, --spider, -q, http://localhost:9090/favicon.ico]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    ports: ["9090:9090"]
+
+  clamav:
+    image: clamav/clamav:1.4_base
+    volumes: [clamav-db:/var/lib/clamav]
+    healthcheck:
+      test: [CMD-SHELL, "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+    ports: ["3310:3310"]
+
+  api:
+    build: {context: ./apps/api}
+    environment: *api-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      object-storage: {condition: service_healthy}
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8000", --reload]
+    volumes: [./apps/api:/app]
+    ports: ["8000:8000"]
+
+  worker:
+    build: {context: ./apps/api}
+    environment: *api-env
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      clamav: {condition: service_healthy}
+    command: [celery, -A, app.workers.celery_app, worker, --loglevel=INFO]
+    volumes: [./apps/api:/app]
+
+  web:
+    build: {context: ., dockerfile: apps/web/Dockerfile}
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      INTERNAL_API_URL: http://api:8000/api/v1
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  object-data:
+  clamav-db:
