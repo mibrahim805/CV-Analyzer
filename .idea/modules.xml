@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/CV Analyzer.iml" filepath="$PROJECT_DIR$/.idea/CV Analyzer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/career-pilot-api.iml" filepath="$PROJECT_DIR$/.idea/career-pilot-api.iml" />
     </modules>
   </component>
 </project>
