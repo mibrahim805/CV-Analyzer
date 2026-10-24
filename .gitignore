@@ -17,5 +17,6 @@ test-results/
 dist/
 .DS_Store
 *.log
+*.tsbuildinfo
 .idea/workspace.xml
 .idea/shelf/
