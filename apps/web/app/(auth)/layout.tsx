@@ -1,0 +1,5 @@
+import { Brand } from "@/components/brand";
+
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  return <main className="grid min-h-screen lg:grid-cols-[.92fr_1.08fr]"><section className="flex min-h-screen flex-col p-6 sm:p-10"><Brand/><div className="mx-auto flex w-full max-w-md flex-1 items-center py-16">{children}</div></section><aside className="noise relative hidden overflow-hidden bg-ink p-12 text-canvas lg:flex lg:flex-col lg:justify-between"><div className="absolute -right-28 top-24 size-96 rounded-full bg-accent/25 blur-3xl"/><p className="relative text-xs font-extrabold uppercase tracking-[.2em] text-emerald-300">Career clarity, not career theatre</p><blockquote className="relative max-w-xl font-serif text-4xl leading-tight tracking-[-.02em]">“The strongest career advice begins by separating what your CV proves from what it merely implies.”</blockquote><div className="relative grid grid-cols-3 gap-4 border-t border-white/15 pt-7 text-sm text-white/55"><span>Private by default</span><span>Evidence-linked</span><span>User-correctable</span></div></aside></main>;
+}
