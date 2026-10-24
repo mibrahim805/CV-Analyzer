@@ -1,16 +1,19 @@
-# This is a sample Python script.
+"""Developer convenience entry point.
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+The production ASGI application lives in ``apps/api/app/main.py``. Prefer the
+documented uvicorn command; this file keeps IDE run actions useful.
+"""
+
+from pathlib import Path
+import sys
+
+API_ROOT = Path(__file__).parent / "apps" / "api"
+sys.path.insert(0, str(API_ROOT))
+
+from app.main import app  # noqa: E402,F401
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+if __name__ == "__main__":
+    import uvicorn
 
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    uvicorn.run("app.main:app", app_dir=str(API_ROOT), host="127.0.0.1", port=8000, reload=True)
