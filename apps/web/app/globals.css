@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas: 42 38% 97%;
+  --ink: 170 29% 11%;
+  --muted: 167 9% 42%;
+  --line: 160 13% 86%;
+  --panel: 45 40% 99%;
+  --accent: 166 71% 35%;
+  --accent-ink: 160 65% 96%;
+}
+
+.dark {
+  --canvas: 174 24% 7%;
+  --ink: 150 25% 94%;
+  --muted: 165 10% 66%;
+  --line: 168 14% 19%;
+  --panel: 172 20% 10%;
+  --accent: 164 61% 49%;
+  --accent-ink: 172 30% 8%;
+}
+
+* { border-color: hsl(var(--line)); }
+html { scroll-behavior: smooth; }
+body { background: hsl(var(--canvas)); color: hsl(var(--ink)); font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif; }
+::selection { background: hsl(var(--accent) / .22); }
+
+.noise {
+  background-image: radial-gradient(hsl(var(--ink) / .07) .65px, transparent .65px);
+  background-size: 7px 7px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
