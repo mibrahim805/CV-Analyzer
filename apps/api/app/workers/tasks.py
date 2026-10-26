@@ -14,9 +14,20 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.cv import CVExtraction, CVProcessingJob, CVVersion, CVVersionStatus, ProcessingJobStatus
+from app.models.cv import (
+    CVExtraction,
+    CVProcessingJob,
+    CVProfessionalProfile,
+    CVProfileStatus,
+    CVVersion,
+    CVVersionStatus,
+    ProcessingJobStatus,
+)
+from app.models.job import JobSearchQuery, JobSearchStatus
+from app.services.cv_profile import CVProfileError, generate_professional_profile
 from app.services.document_extraction import ExtractionError, extract_document
 from app.services.job_search import run_job_search as execute_job_search
+from app.services.object_storage import read_document_text
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -31,6 +42,26 @@ def _storage() -> Any:
         region_name="us-east-1",
         config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
+
+
+def _mark_job_search_failed(search_id: str, failure_code: str) -> None:
+    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
+    try:
+        with Session(engine) as db:
+            search = db.get(JobSearchQuery, UUID(search_id), with_for_update=True)
+            if search is None or search.status in {
+                JobSearchStatus.SUCCEEDED,
+                JobSearchStatus.PARTIAL,
+                JobSearchStatus.CANCELLED,
+            }:
+                return
+            search.status = JobSearchStatus.FAILED
+            search.provider_status = "unavailable"
+            search.failure_code = failure_code
+            search.completed_at = datetime.now(timezone.utc)
+            db.commit()
+    finally:
+        engine.dispose()
 
 
 def _clamav_scan(stream: Any) -> str:
@@ -214,6 +245,10 @@ def extract_cv_document(_self: Task, version_id: str, job_id: str) -> None:
             job.status = ProcessingJobStatus.SUCCEEDED
             job.completed_at = now
             db.commit()
+            try:
+                build_cv_profile.delay(str(version_id))
+            except Exception:
+                logger.warning("cv_profile_dispatch_failed", extra={"version_id": version_id})
     except ExtractionError as exc:
         with Session(engine) as db:
             version = db.get(CVVersion, version_uuid)
@@ -242,6 +277,55 @@ def extract_cv_document(_self: Task, version_id: str, job_id: str) -> None:
         engine.dispose()
 
 
+@celery_app.task(bind=True)  # type: ignore[untyped-decorator]
+def build_cv_profile(_self: Task, version_id: str) -> None:
+    """Generate a validated professional profile for one extracted CV version."""
+    engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
+    version_uuid = UUID(version_id)
+    try:
+        with Session(engine) as db:
+            version = db.scalar(select(CVVersion).where(CVVersion.id == version_uuid).with_for_update())
+            extraction = db.scalar(select(CVExtraction).where(CVExtraction.version_id == version_uuid))
+            if version is None or extraction is None or version.status != CVVersionStatus.READY:
+                return
+            profile = db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid))
+            if profile is None:
+                profile = CVProfessionalProfile(version_id=version_uuid)
+                db.add(profile)
+                db.flush()
+            profile.status = CVProfileStatus.PROCESSING
+            profile.failure_code = None
+            profile.source_text_sha256 = extraction.text_sha256
+            db.commit()
+            source_text = read_document_text(extraction.text_object_key)
+
+        try:
+            generated = generate_professional_profile(source_text)
+        except CVProfileError as exc:
+            with Session(engine) as db:
+                profile = db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid))
+                if profile is not None:
+                    profile.status = CVProfileStatus.AWAITING_MODEL if exc.code == "ai_provider_unconfigured" else CVProfileStatus.FAILED
+                    profile.failure_code = exc.code
+                    db.commit()
+            return
+
+        with Session(engine) as db:
+            profile = db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid).with_for_update())
+            if profile is None:
+                return
+            profile.profile = generated.model_dump(mode="json")
+            profile.provider = settings.AI_PROVIDER
+            profile.model_name = settings.AI_MODEL_NAME
+            profile.prompt_version = settings.AI_PROFILE_PROMPT_VERSION
+            profile.status = CVProfileStatus.NEEDS_REVIEW
+            profile.failure_code = None
+            profile.revision = max(profile.revision, 1)
+            db.commit()
+    finally:
+        engine.dispose()
+
+
 @celery_app.task(  # type: ignore[untyped-decorator]
     bind=True,
     autoretry_for=(OSError,),
@@ -250,4 +334,9 @@ def extract_cv_document(_self: Task, version_id: str, job_id: str) -> None:
     max_retries=2,
 )
 def run_job_search(_self: Task, search_id: str) -> None:
-    execute_job_search(search_id)
+    try:
+        execute_job_search(search_id)
+    except Exception:
+        logger.exception("job_search_worker_failed", extra={"search_id": search_id})
+        _mark_job_search_failed(search_id, "search_worker_error")
+        raise
