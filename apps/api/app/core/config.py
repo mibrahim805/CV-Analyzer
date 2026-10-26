@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     CLAMAV_PORT: int = 3310
     MAX_CV_BYTES: int = 10 * 1024 * 1024
     COOKIE_SECURE: bool = False
+    JOB_PROVIDER_TIMEOUT_SECONDS: float = 8.0
+    GREENHOUSE_BOARD_TOKENS: str = ""
+    LEVER_SITE_NAMES: str = ""
 
     @field_validator("APP_SECRET_KEY")
     @classmethod
