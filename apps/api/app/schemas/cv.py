@@ -75,6 +75,22 @@ class CVExtractionStatusResponse(BaseModel):
     extraction: CVExtractionResponse | None
 
 
+class CVAnalysisCheck(BaseModel):
+    key: str
+    status: str
+    detail: str
+    evidence: str
+
+
+class CVAnalysisResponse(BaseModel):
+    version_id: UUID
+    analysis_type: str
+    metrics: dict[str, int]
+    checks: list[CVAnalysisCheck]
+    recommendations: list[str]
+    generated_at: datetime
+
+
 class CVDocumentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

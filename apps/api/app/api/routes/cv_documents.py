@@ -14,6 +14,8 @@ from app.models.cv import CVDocument, CVExtraction, CVProcessingJob, CVVersion, 
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.cv import (
+    CVAnalysisCheck,
+    CVAnalysisResponse,
     CVDocumentResponse,
     CVExtractionStatusResponse,
     CVVersionResponse,
@@ -22,7 +24,8 @@ from app.schemas.cv import (
     UploadInitiateRequest,
     UploadInitiateResponse,
 )
-from app.services.object_storage import create_upload_url, verify_quarantine_object
+from app.services.cv_evaluation import evaluate_cv_text
+from app.services.object_storage import create_upload_url, read_document_text, verify_quarantine_object
 
 router = APIRouter(prefix="/cv-documents", tags=["CV documents"], dependencies=[Depends(require_csrf)])
 
@@ -172,6 +175,37 @@ async def get_extraction_status(
         status=version.status.value,
         failure_code=version.failure_code,
         extraction=extraction,
+    )
+
+
+@router.post("/{document_id}/versions/{version_id}/analyze", response_model=CVAnalysisResponse)
+async def analyze_cv(
+    document_id: UUID,
+    version_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CVAnalysisResponse:
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    extraction = await db.scalar(select(CVExtraction).where(CVExtraction.version_id == version.id))
+    if version.status != CVVersionStatus.READY or extraction is None:
+        raise AppError(409, "cv_not_ready", "The CV must finish text extraction before analysis.", "CV not ready")
+    text = read_document_text(extraction.text_object_key)
+    evaluation = evaluate_cv_text(text)
+    return CVAnalysisResponse(
+        version_id=version.id,
+        analysis_type="deterministic_foundation_v1",
+        metrics=evaluation.metrics,
+        # The evaluator returns lightweight dataclasses; map their fields into
+        # the public API response model explicitly.
+        checks=[
+            CVAnalysisCheck(key=check.key, status=check.status, detail=check.detail, evidence=check.evidence)
+            for check in evaluation.checks
+        ],
+        recommendations=evaluation.recommendations,
+        generated_at=datetime.now(timezone.utc),
     )
 
 
