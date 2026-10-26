@@ -27,7 +27,7 @@ type NavItem = {
 
 const navigation: NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard, available: true },
-  { label: "My CVs", href: "/dashboard#cv-library", icon: FileText, available: true },
+  { label: "My CVs", href: "/dashboard/cvs", icon: FileText, available: true },
   { label: "Job Opportunities", href: "/dashboard/jobs", icon: BriefcaseBusiness, available: true },
   { label: "Interview Coach", href: "/dashboard/interviews", icon: MessageSquareText, available: true },
   { label: "AI Assistant", href: "/dashboard/assistant", icon: Bot, available: false },
