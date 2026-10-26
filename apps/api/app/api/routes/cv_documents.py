@@ -1,8 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
-from uuid import UUID, uuid4
-
 from urllib.parse import quote
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
@@ -12,7 +11,16 @@ from app.api.dependencies import get_current_user, require_csrf
 from app.api.problems import AppError
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.cv import CVDocument, CVExtraction, CVProcessingJob, CVVersion, CVVersionStatus, ProcessingJobStatus
+from app.models.cv import (
+    CVDocument,
+    CVExtraction,
+    CVProcessingJob,
+    CVProfessionalProfile,
+    CVProfileStatus,
+    CVVersion,
+    CVVersionStatus,
+    ProcessingJobStatus,
+)
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.cv import (
@@ -26,8 +34,14 @@ from app.schemas.cv import (
     UploadInitiateRequest,
     UploadInitiateResponse,
 )
+from app.schemas.cv_profile import CVProfessionalProfileResponse, UpdateProfessionalProfileRequest
 from app.services.cv_evaluation import evaluate_cv_text
-from app.services.object_storage import create_upload_url, read_document_text, read_original_document, verify_quarantine_object
+from app.services.object_storage import (
+    create_upload_url,
+    read_document_text,
+    read_original_document,
+    verify_quarantine_object,
+)
 
 router = APIRouter(prefix="/cv-documents", tags=["CV documents"], dependencies=[Depends(require_csrf)])
 
@@ -178,6 +192,78 @@ async def get_extraction_status(
         failure_code=version.failure_code,
         extraction=extraction,
     )
+
+
+@router.get("/{document_id}/versions/{version_id}/profile", response_model=CVProfessionalProfileResponse)
+async def get_professional_profile(
+    document_id: UUID,
+    version_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CVProfessionalProfile:
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id))
+    if profile is None:
+        raise AppError(409, "profile_not_ready", "The professional profile is still being prepared.", "Profile not ready")
+    return profile
+
+
+@router.put("/{document_id}/versions/{version_id}/profile", response_model=CVProfessionalProfileResponse)
+async def update_professional_profile(
+    document_id: UUID,
+    version_id: UUID,
+    payload: UpdateProfessionalProfileRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CVProfessionalProfile:
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update())
+    if profile is None or profile.status not in {CVProfileStatus.READY, CVProfileStatus.NEEDS_REVIEW}:
+        raise AppError(409, "profile_not_ready", "The professional profile is not ready to edit.", "Profile not ready")
+    profile.profile = payload.profile.model_dump(mode="json")
+    profile.revision += 1
+    profile.status = CVProfileStatus.NEEDS_REVIEW
+    profile.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(profile)
+    return profile
+
+
+@router.post("/{document_id}/versions/{version_id}/profile/refresh", response_model=CVProfessionalProfileResponse, status_code=202)
+async def refresh_professional_profile(
+    document_id: UUID,
+    version_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CVProfessionalProfile:
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    if version.status != CVVersionStatus.READY:
+        raise AppError(409, "cv_not_ready", "The CV must finish extraction before profile generation.", "CV not ready")
+    extraction = await db.scalar(select(CVExtraction).where(CVExtraction.version_id == version.id))
+    if extraction is None:
+        raise AppError(409, "extraction_not_ready", "The extracted CV text is not available yet.", "Extraction not ready")
+    profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update())
+    if profile is None:
+        profile = CVProfessionalProfile(version_id=version.id)
+        db.add(profile)
+        await db.flush()
+    profile.status = CVProfileStatus.AWAITING_MODEL
+    profile.failure_code = None
+    profile.source_text_sha256 = extraction.text_sha256
+    await db.commit()
+    from app.workers.tasks import build_cv_profile
+
+    build_cv_profile.delay(str(version.id))
+    return profile
 
 
 @router.get("/{document_id}/versions/{version_id}/download")
