@@ -75,6 +75,11 @@ export async function getCVVersion(documentId: string, versionId: string, signal
   return parseApiResponse<CVVersion>(response, "The CV version could not be loaded.");
 }
 
+export async function getCVDocument(documentId: string, signal?: AbortSignal): Promise<CVDocument> {
+  const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}`, { credentials: "include", signal });
+  return parseApiResponse<CVDocument>(response, "The CV document could not be loaded.");
+}
+
 export async function getCVExtraction(documentId: string, versionId: string, signal?: AbortSignal): Promise<CVExtractionStatus> {
   const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/extraction`, { credentials: "include", signal });
   return parseApiResponse<CVExtractionStatus>(response, "The CV processing status could not be loaded.");
@@ -100,6 +105,10 @@ export async function deleteCV(documentId: string): Promise<void> {
     headers: { "X-CSRF-Token": token },
   });
   await parseApiResponse(response, "The CV could not be deleted.");
+}
+
+export function cvDownloadUrl(documentId: string, versionId: string): string {
+  return `${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/download`;
 }
 
 export async function uploadCVFile(
