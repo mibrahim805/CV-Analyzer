@@ -67,3 +67,59 @@ export interface JobListing {
   status: "active" | "expired" | "removed";
   source: { provider_key: string; display_name: string; terms_url: string };
 }
+
+export type InterviewMode =
+  | "general"
+  | "technical"
+  | "behavioral"
+  | "project"
+  | "job_specific"
+  | "hr";
+
+export type InterviewDifficulty = "easy" | "medium" | "hard";
+export type InterviewSessionStatus = "active" | "paused" | "completed" | "abandoned";
+
+export interface InterviewQuestion {
+  id: string;
+  sequence: number;
+  prompt: string;
+  topic: string;
+  intent: string;
+  status: "asked" | "answered" | "skipped";
+  source_evidence: string[];
+  asked_at: string;
+  answered_at: string | null;
+  response: InterviewResponse | null;
+  evaluation: InterviewEvaluation | null;
+}
+
+export interface InterviewResponse {
+  id: string;
+  answer_text: string;
+  skipped: boolean;
+  submitted_at: string;
+}
+
+export interface InterviewEvaluation {
+  id: string;
+  question_id: string | null;
+  rubric_version: string;
+  dimensions: Record<string, number>;
+  strengths: string[];
+  improvements: string[];
+  evidence: string[];
+  example_structure: string | null;
+}
+
+export interface InterviewSession {
+  id: string;
+  mode: InterviewMode;
+  difficulty: InterviewDifficulty;
+  status: InterviewSessionStatus;
+  max_questions: number;
+  current_sequence: number;
+  started_at: string;
+  completed_at: string | null;
+  questions: InterviewQuestion[];
+  evaluations: InterviewEvaluation[];
+}
