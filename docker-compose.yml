@@ -15,6 +15,11 @@ x-api-env: &api-env
   CLAMAV_HOST: clamav
   GREENHOUSE_BOARD_TOKENS: ${GREENHOUSE_BOARD_TOKENS:-}
   LEVER_SITE_NAMES: ${LEVER_SITE_NAMES:-}
+  AI_PROVIDER: ${AI_PROVIDER:-none}
+  AI_API_URL: ${AI_API_URL:-https://api.openai.com/v1/chat/completions}
+  AI_API_KEY: ${AI_API_KEY:-}
+  AI_MODEL_NAME: ${AI_MODEL_NAME:-}
+  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-30}
 
 services:
   postgres:
