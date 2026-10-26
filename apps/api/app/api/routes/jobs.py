@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -8,7 +8,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_current_user, require_csrf
 from app.api.problems import AppError
+from app.core.config import settings
 from app.db.session import get_db
+from app.models.cv import CVDocument, CVProfessionalProfile, CVProfileStatus, CVVersion, CVVersionStatus
 from app.models.job import JobListing, JobMatch, JobSearchQuery, JobSearchStatus, SavedJob
 from app.models.user import User
 from app.schemas.common import Page
@@ -23,12 +25,31 @@ from app.schemas.jobs import (
 router = APIRouter(prefix="", tags=["jobs"], dependencies=[Depends(require_csrf)])
 
 
+def _expire_stale_search(search: JobSearchQuery) -> bool:
+    if search.status not in {JobSearchStatus.QUEUED, JobSearchStatus.RUNNING}:
+        return False
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=settings.JOB_SEARCH_TIMEOUT_SECONDS)
+    created_at = search.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    if created_at > cutoff:
+        return False
+    search.status = JobSearchStatus.FAILED
+    search.provider_status = "timeout"
+    search.failure_code = "search_timeout"
+    search.completed_at = datetime.now(timezone.utc)
+    return True
+
+
 async def _owned_search(db: AsyncSession, search_id: UUID, user_id: UUID) -> JobSearchQuery:
     search = await db.scalar(
         select(JobSearchQuery).where(JobSearchQuery.id == search_id, JobSearchQuery.user_id == user_id)
     )
     if search is None:
         raise AppError(404, "job_search_not_found", "The job search was not found.", "Not found")
+    if _expire_stale_search(search):
+        await db.commit()
+        await db.refresh(search)
     return search
 
 
@@ -38,9 +59,56 @@ async def create_job_search(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> JobSearchQuery:
+    selected_version = None
+    selected_profile = None
+    if payload.cv_version_id is not None:
+        selected_version = await db.scalar(
+            select(CVVersion)
+            .join(CVDocument, CVDocument.id == CVVersion.document_id)
+            .where(
+                CVVersion.id == payload.cv_version_id,
+                CVVersion.status == CVVersionStatus.READY,
+                CVDocument.user_id == user.id,
+            )
+        )
+        if selected_version is None:
+            raise AppError(409, "cv_not_ready", "Select a processed CV before searching for personalized jobs.", "CV not ready")
+        selected_profile = await db.scalar(
+            select(CVProfessionalProfile).where(
+                CVProfessionalProfile.version_id == selected_version.id,
+                CVProfessionalProfile.status.in_((CVProfileStatus.READY, CVProfileStatus.NEEDS_REVIEW)),
+            )
+        )
+    else:
+        selected_profile = await db.scalar(
+            select(CVProfessionalProfile)
+            .join(CVVersion, CVVersion.id == CVProfessionalProfile.version_id)
+            .join(CVDocument, CVDocument.id == CVVersion.document_id)
+            .where(
+                CVDocument.user_id == user.id,
+                CVVersion.status == CVVersionStatus.READY,
+                CVProfessionalProfile.status.in_((CVProfileStatus.READY, CVProfileStatus.NEEDS_REVIEW)),
+            )
+            .order_by(CVProfessionalProfile.updated_at.desc())
+        )
+        if selected_profile is not None:
+            selected_version = await db.get(CVVersion, selected_profile.version_id)
+    if selected_profile is None or selected_version is None or not selected_profile.profile:
+        raise AppError(409, "profile_not_ready", "Review your AI-understood CV profile before searching for personalized jobs.", "Profile not ready")
+    profile_roles = [
+        str(role.get("title", "")).strip()
+        for role in (selected_profile.profile.get("roles", []) if isinstance(selected_profile.profile, dict) else [])
+        if isinstance(role, dict) and str(role.get("title", "")).strip()
+    ]
+    target_roles = list(dict.fromkeys([*(role.strip() for role in payload.target_roles if role.strip()), *profile_roles]))
+    if not target_roles:
+        raise AppError(422, "profile_roles_missing", "The reviewed CV profile does not contain a supported target role yet.", "Role required")
     search = JobSearchQuery(
         user_id=user.id,
-        target_roles=[role.strip() for role in payload.target_roles if role.strip()],
+        cv_version_id=selected_version.id if selected_version else None,
+        cv_profile_id=selected_profile.id,
+        cv_profile_revision=selected_profile.revision,
+        target_roles=target_roles,
         locations=[location.strip() for location in payload.locations if location.strip()],
         work_arrangements=[value.strip().lower() for value in payload.work_arrangements if value.strip()],
         experience_levels=[value.strip().lower() for value in payload.experience_levels if value.strip()],
@@ -83,6 +151,11 @@ async def list_job_searches(
             )
         ).all()
     )
+    stale = False
+    for row in rows[:limit]:
+        stale = _expire_stale_search(row) or stale
+    if stale:
+        await db.commit()
     return Page(data=[JobSearchResponse.model_validate(row) for row in rows[:limit]], has_more=len(rows) > limit)
 
 
@@ -91,6 +164,23 @@ async def get_job_search(
     search_id: UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> JobSearchQuery:
     return await _owned_search(db, search_id, user.id)
+
+
+@router.post("/job-searches/{search_id}/cancel", response_model=JobSearchResponse)
+async def cancel_job_search(
+    search_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> JobSearchQuery:
+    search = await _owned_search(db, search_id, user.id)
+    if search.status in {JobSearchStatus.QUEUED, JobSearchStatus.RUNNING}:
+        search.status = JobSearchStatus.CANCELLED
+        search.provider_status = "cancelled"
+        search.failure_code = "search_cancelled"
+        search.completed_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(search)
+    return search
 
 
 @router.get("/job-searches/{search_id}/matches", response_model=Page[JobMatchResponse])
