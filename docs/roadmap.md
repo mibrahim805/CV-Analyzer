@@ -34,6 +34,16 @@ Persistent adaptive text interviews, modes, follow-ups, skips/end, evidence-base
 
 Acceptance: one question per turn; follow-ups demonstrably use prior answer; repetition/relevance suite passes; feedback cites actual responses and rubric; interruption/resume/idempotency/isolation E2E passes.
 
+### Phase 4 foundation evidence (2026-10-26)
+
+- [x] Persistent interview sessions, questions, responses, evaluations, and lifecycle states in migration `20261026_0004`.
+- [x] General, technical, behavioral, project, job-specific, and HR modes with easy/medium/hard difficulty contracts.
+- [x] One-question turn controller with contextual short-answer and technical trade-off follow-ups, skip, end, and non-repetition guards.
+- [x] Transparent technical accuracy, clarity, depth, and role-relevance rubric with response evidence and coaching examples.
+- [x] Owner-scoped REST endpoints and responsive `/dashboard/interviews` experience with session history.
+- [ ] Resume/idempotency/isolation end-to-end coverage and model-provider-backed adaptive generation.
+- [ ] Voice interview transport and production model/prompt evaluation gates.
+
 ## Phase 5 — Unified assistant
 
 Assistant orchestration over allow-listed typed tools and approved user context.

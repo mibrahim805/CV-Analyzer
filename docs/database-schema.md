@@ -50,12 +50,14 @@ Listings are shared provider facts. Matches and saves are tenant-owned. Expired 
 | `chat_conversations` | user_id, title, status; `(user_id, updated_at desc)` |
 | `chat_messages` | conversation_id, role, content_encrypted/reference, sequence unique, safety metadata |
 | `tool_executions` | message_id, tool_name/version, validated args/result references, status, latency, authorization subject; no secrets |
-| `interview_sessions` | user_id, profile_id, listing_id nullable, mode/difficulty/status, rubric/prompt versions; `(user_id, created_at desc)` |
-| `interview_questions` | session_id, sequence unique, text, intent, source evidence refs |
-| `interview_responses` | question_id unique, response, skipped, submitted_at |
-| `interview_evaluations` | session/question nullable, rubric dimensions/evidence/recommendations, model version; unique scope/version |
+| `interview_sessions` | user_id, `cv_version_id`/listing_id nullable snapshots, mode/difficulty/status, max/current sequence, minimized context; `(user_id, created_at desc)` |
+| `interview_questions` | session_id, sequence unique, prompt/topic/intent, source evidence, asked/answered timestamps |
+| `interview_responses` | question_id unique, answer text, skipped, submitted_at |
+| `interview_evaluations` | session/question nullable, rubric version, bounded dimensions, strengths/improvements/evidence; unique `(session_id, question_id)` scope |
 | `ai_usage_records` | user_id, operation, provider/model, input/output tokens, cost micros/currency, request correlation; time/user indexes |
 | `audit_events` | actor_user_id nullable, subject_user_id nullable, action, target type/id, outcome, IP/UA hashes, safe metadata, occurred_at; monthly partition candidate, append-only |
+
+The Phase 4 interview tables are introduced by Alembic migration `20261026_0004_interview_coach`. Interview context is a minimized JSON snapshot used to make a session reproducible; raw CV documents remain in private object storage.
 
 ## Storage ownership
 

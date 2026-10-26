@@ -37,6 +37,16 @@ Browsers receive a short-lived access token and rotating opaque refresh token in
 
 The initial adapters support configured Greenhouse public boards and Lever public postings. No provider configuration produces an explicit empty result rather than fixture or fabricated jobs. Listing links remain the source's original URLs.
 
+## Interview coach (Phase 4 foundation)
+
+- `POST /interviews`: starts an owner-scoped text interview from the latest ready CV (or a selected version), optionally bound to a normalized job listing. The request accepts `mode`, `difficulty`, and `max_questions`; the response contains the first question while a minimized coaching context is retained server-side.
+- `GET /interviews?limit`: returns the user's interview history with status, mode, difficulty, question count, and completion time.
+- `GET /interviews/{id}`: returns the session transcript, current question, per-question rubric evaluations, and overall coaching evaluation.
+- `POST /interviews/{id}/responses`: submits one answer, explicitly skips the current question, or ends the session. The server accepts only the active unanswered question, persists the response, evaluates it against the deterministic rubric, and returns at most one next question.
+- `POST /interviews/{id}/end`: completes an active session and persists an aggregate evaluation. Repeated completion is safe and returns the existing completed session.
+
+Interview responses never claim hiring outcomes or psychological traits. Evaluation dimensions are bounded 0–5 values for technical accuracy, clarity, depth, and role relevance, with evidence and improvement suggestions derived from the submitted answer. The current foundation uses a deterministic policy engine; model-backed generation is a later provider-gated implementation.
+
 Later resources follow the same conventions: `/cv-profiles`, `/cv-analyses`, `/job-searches`, `/job-matches`, `/saved-jobs`, `/conversations/{id}/messages`, `/interviews/{id}/responses`.
 
 ## Representative contracts

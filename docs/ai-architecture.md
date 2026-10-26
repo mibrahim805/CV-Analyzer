@@ -41,6 +41,8 @@ Uploaded text, listings, and messages are wrapped as untrusted data with instruc
 
 An interview policy engine persists the selected CV snapshot, job snapshot, mode, difficulty, asked topics, and conversation state. Each turn selects a competency gap, asks exactly one question, and may request a contextual follow-up based on the answer. A deterministic controller enforces limits, skips, non-repetition, relevance, and end state. Evaluation is a separate pass using explicit technical accuracy, evidence/depth, clarity/structure, and role relevance rubrics. It cites response excerpts, distinguishes uncertainty, avoids personality/mental-state claims, and labels example answers as coaching suggestions.
 
+The Phase 4 foundation implements this policy engine in `app.services.interview_coach` and persists the state in `interview_sessions`, `interview_questions`, `interview_responses`, and `interview_evaluations`. It deliberately runs without a model when no provider is configured, so the UI never presents fabricated AI output. A future model adapter can replace question phrasing/evaluation generation behind the same typed contracts and rubric guardrails.
+
 ## Evaluation and operations
 
 Quality gates cover unsupported-claim rate, extraction field precision/recall, schema compliance, injection/tool-escape resistance, match NDCG plus explanation faithfulness, interview repetition/relevance, latency, and per-operation cost. Model/prompt changes run a regression suite and support rollback. Human feedback is consented, access-controlled, and separated from production PII.
