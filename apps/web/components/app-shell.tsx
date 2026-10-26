@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { fetchCurrentUser, type CurrentUser } from "@/lib/current-user";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -17,31 +18,51 @@ export function useCurrentUser() {
 }
 
 function UserProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const controller = new AbortController();
     fetchCurrentUser(controller.signal)
-      .then(setUser)
-      .catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) setUser(null);
+      .then((nextUser) => {
+        if (active) setUser(nextUser);
       })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
+      .catch((error: unknown) => {
+        if (active && !(error instanceof DOMException && error.name === "AbortError")) setUser(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      const next = pathname.startsWith("/") && !pathname.startsWith("//") ? pathname : "/dashboard";
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
+    }
+  }, [loading, pathname, router, user]);
 
   return <UserContext.Provider value={{ user, loading }}>{children}</UserContext.Provider>;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { user } = useCurrentUser();
+  const { user, loading } = useCurrentUser();
   const [mobileOpen, setMobileOpen] = useState(false);
   const displayName = user?.profile.display_name?.trim() || user?.email.split("@")[0] || "Account";
   const initials = useMemo(
     () => displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase(),
     [displayName],
   );
+  if (loading || !user) {
+    return <div className="grid min-h-screen place-items-center bg-canvas px-6 text-sm font-semibold text-muted" role="status">Checking your secure session…</div>;
+  }
   const dashboardUser = { displayName, email: user?.email ?? "Secure workspace", initials };
 
   return (
