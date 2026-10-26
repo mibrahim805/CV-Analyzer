@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import socket
 import struct
 import tempfile
@@ -15,7 +16,10 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.cv import CVExtraction, CVProcessingJob, CVVersion, CVVersionStatus, ProcessingJobStatus
 from app.services.document_extraction import ExtractionError, extract_document
+from app.services.job_search import run_job_search as execute_job_search
 from app.workers.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
 
 
 def _storage() -> Any:
@@ -120,7 +124,7 @@ def scan_cv_document(_self: Task, version_id: str, job_id: str) -> None:
                 extract_cv_document.delay(str(version_id), str(extraction_job_id))
             except Exception:
                 # The queued job remains durable and can be dispatched by a retry/reconciler.
-                pass
+                logger.warning("text_extraction_dispatch_failed", extra={"version_id": version_id})
     except Exception:
         with Session(engine) as db:
             version = db.get(CVVersion, UUID(version_id))
@@ -236,3 +240,14 @@ def extract_cv_document(_self: Task, version_id: str, job_id: str) -> None:
         raise
     finally:
         engine.dispose()
+
+
+@celery_app.task(  # type: ignore[untyped-decorator]
+    bind=True,
+    autoretry_for=(OSError,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=2,
+)
+def run_job_search(_self: Task, search_id: str) -> None:
+    execute_job_search(search_id)
