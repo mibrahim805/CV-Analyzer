@@ -4,9 +4,8 @@ from pydantic import ValidationError
 from app.schemas.jobs import JobSearchRequest
 
 
-def test_job_search_requires_a_role() -> None:
-    with pytest.raises(ValidationError):
-        JobSearchRequest()
+def test_job_search_allows_profile_derived_roles() -> None:
+    assert JobSearchRequest().target_roles == []
 
 
 def test_job_search_rejects_inverted_salary_range() -> None:

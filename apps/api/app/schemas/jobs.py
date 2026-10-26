@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 
 class JobSearchRequest(BaseModel):
+    cv_version_id: UUID | None = None
     target_roles: list[str] = Field(default_factory=list, max_length=8)
     locations: list[str] = Field(default_factory=list, max_length=8)
     work_arrangements: list[str] = Field(default_factory=list, max_length=4)
@@ -22,8 +23,6 @@ class JobSearchRequest(BaseModel):
             and self.salary_min_minor > self.salary_max_minor
         ):
             raise ValueError("Minimum salary cannot exceed maximum salary")
-        if not self.target_roles:
-            raise ValueError("At least one target role is required")
         return self
 
 
@@ -42,6 +41,9 @@ class JobSearchResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    cv_version_id: UUID | None
+    cv_profile_id: UUID | None
+    cv_profile_revision: int | None
     target_roles: list[str]
     locations: list[str]
     work_arrangements: list[str]
