@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 ws://localhost:3000 ws://127.0.0.1:3000",
+    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://localhost:9090 http://127.0.0.1:9090 ws://localhost:3000 ws://127.0.0.1:3000",
   ].join("; ");
 
   const requestHeaders = new Headers(request.headers);

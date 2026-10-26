@@ -30,3 +30,8 @@ def test_state_change_rejects_untrusted_origin() -> None:
     with pytest.raises(AppError) as exc_info:
         require_csrf(make_request("DELETE", cookie="known", origin="https://attacker.example"), "known")
     assert exc_info.value.status_code == 403
+
+
+def test_state_change_accepts_any_configured_frontend_origin() -> None:
+    alternate_origin = next(origin for origin in settings.CORS_ORIGINS if origin != settings.WEB_ORIGIN)
+    require_csrf(make_request("POST", cookie="known", origin=alternate_origin), "known")

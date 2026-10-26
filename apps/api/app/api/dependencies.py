@@ -46,5 +46,5 @@ def require_csrf(request: Request, x_csrf_token: str | None = Header(default=Non
     if not cookie or not x_csrf_token or not secrets.compare_digest(cookie, x_csrf_token):
         raise AppError(403, "csrf_failed", "The request could not be verified.", "Forbidden")
     origin = request.headers.get("origin")
-    if origin and origin != settings.WEB_ORIGIN:
+    if origin and origin not in settings.CORS_ORIGINS:
         raise AppError(403, "origin_forbidden", "The request origin is not permitted.", "Forbidden")

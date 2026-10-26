@@ -54,6 +54,27 @@ class CVVersionResponse(BaseModel):
     updated_at: datetime
 
 
+class CVExtractionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    version_id: UUID
+    method: str
+    text_sha256: str
+    page_count: int | None
+    character_count: int
+    language: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CVExtractionStatusResponse(BaseModel):
+    version_id: UUID
+    status: str
+    failure_code: str | None
+    extraction: CVExtractionResponse | None
+
+
 class CVDocumentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

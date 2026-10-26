@@ -10,11 +10,12 @@ from app.api.dependencies import get_current_user, require_csrf
 from app.api.problems import AppError
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.cv import CVDocument, CVProcessingJob, CVVersion, CVVersionStatus, ProcessingJobStatus
+from app.models.cv import CVDocument, CVExtraction, CVProcessingJob, CVVersion, CVVersionStatus, ProcessingJobStatus
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.cv import (
     CVDocumentResponse,
+    CVExtractionStatusResponse,
     CVVersionResponse,
     PresignedUpload,
     UploadCompleteRequest,
@@ -152,6 +153,26 @@ async def get_version(
     if version is None:
         raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
     return version
+
+
+@router.get("/{document_id}/versions/{version_id}/extraction", response_model=CVExtractionStatusResponse)
+async def get_extraction_status(
+    document_id: UUID,
+    version_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CVExtractionStatusResponse:
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    extraction = await db.scalar(select(CVExtraction).where(CVExtraction.version_id == version.id))
+    return CVExtractionStatusResponse(
+        version_id=version.id,
+        status=version.status.value,
+        failure_code=version.failure_code,
+        extraction=extraction,
+    )
 
 
 @router.delete("/{document_id}", status_code=202)

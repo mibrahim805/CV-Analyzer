@@ -23,6 +23,8 @@
 }
 
 * { border-color: hsl(var(--line)); }
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
 html { scroll-behavior: smooth; }
 body { background: hsl(var(--canvas)); color: hsl(var(--ink)); font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif; }
 ::selection { background: hsl(var(--accent) / .22); }

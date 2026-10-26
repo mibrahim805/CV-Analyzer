@@ -62,6 +62,27 @@ class CVVersion(UUIDMixin, TimestampMixin, Base):
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     document: Mapped[CVDocument] = relationship(back_populates="versions")
+    extraction: Mapped["CVExtraction | None"] = relationship(
+        back_populates="version", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class CVExtraction(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "cv_extractions"
+    __table_args__ = (
+        UniqueConstraint("version_id", name="uq_cv_extractions_version"),
+        Index("ix_cv_extractions_method_created", "method", "created_at"),
+    )
+
+    version_id: Mapped[UUID] = mapped_column(ForeignKey("cv_versions.id", ondelete="CASCADE"))
+    method: Mapped[str] = mapped_column(String(32))
+    text_object_key: Mapped[str] = mapped_column(String(512), unique=True)
+    text_sha256: Mapped[str] = mapped_column(String(64))
+    page_count: Mapped[int | None] = mapped_column(Integer)
+    character_count: Mapped[int] = mapped_column(Integer)
+    language: Mapped[str | None] = mapped_column(String(16))
+
+    version: Mapped[CVVersion] = relationship(back_populates="extraction")
 
 
 class CVProcessingJob(UUIDMixin, TimestampMixin, Base):
