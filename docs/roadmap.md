@@ -18,6 +18,16 @@ At least one legally approved real provider, adapter framework, normalized/dedup
 
 Acceptance: source contract/legal checklist approved; no fixture appears in production discovery; dedupe/freshness thresholds met; every result has source/link/verified time; provider outage is honest; offline relevance and explanation-faithfulness gates pass.
 
+### Phase 3 foundation evidence (2026-10-26)
+
+- [x] Adapter boundary and explicit provider-unconfigured state.
+- [x] Greenhouse public-board and Lever public-posting adapters with timeout/error handling.
+- [x] PostgreSQL migration for sources, listings, searches, matches, and saved jobs.
+- [x] Owner-scoped search/match/save REST contracts and responsive `/dashboard/jobs` UI.
+- [x] Versioned `job_match_v1` relevance evidence with required-skill gaps and source verification timestamps.
+- [ ] Production provider terms/coverage approval and live source identifiers.
+- [ ] Offline relevance/freshness/deduplication benchmark with labeled provider data.
+
 ## Phase 4 — Interview coach
 
 Persistent adaptive text interviews, modes, follow-ups, skips/end, evidence-based rubrics, feedback/history.

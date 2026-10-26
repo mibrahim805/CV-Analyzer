@@ -16,10 +16,10 @@ if ! command -v corepack >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -x "${ROOT_DIR}/.venv/bin/python" ]]; then
-  PYTHON_BIN="${ROOT_DIR}/.venv/bin/python"
-elif [[ -x "${ROOT_DIR}/apps/api/.venv/bin/python" ]]; then
+if [[ -x "${ROOT_DIR}/apps/api/.venv/bin/python" ]]; then
   PYTHON_BIN="${ROOT_DIR}/apps/api/.venv/bin/python"
+elif [[ -x "${ROOT_DIR}/.venv/bin/python" ]]; then
+  PYTHON_BIN="${ROOT_DIR}/.venv/bin/python"
 else
   echo "No project Python environment found. Create .venv or apps/api/.venv first." >&2
   exit 1
@@ -36,6 +36,8 @@ export OBJECT_STORAGE_ACCESS_KEY="${OBJECT_STORAGE_ACCESS_KEY:-career-local}"
 export OBJECT_STORAGE_SECRET_KEY="${OBJECT_STORAGE_SECRET_KEY:-career-local-secret}"
 export CLAMAV_HOST="${CLAMAV_HOST:-127.0.0.1}"
 export CLAMAV_PORT="${CLAMAV_PORT:-3310}"
+export GREENHOUSE_BOARD_TOKENS="${GREENHOUSE_BOARD_TOKENS:-}"
+export LEVER_SITE_NAMES="${LEVER_SITE_NAMES:-}"
 export WEB_ORIGIN="${WEB_ORIGIN:-http://127.0.0.1:3000}"
 export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000/api/v1}"
 
@@ -52,12 +54,12 @@ cleanup() {
   trap - EXIT INT TERM
   echo
   echo "Stopping application servers..."
-  for pid in "${API_PID:-}" "${WEB_PID:-}"; do
+  for pid in "${API_PID:-}" "${WORKER_PID:-}" "${WEB_PID:-}"; do
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
       kill "${pid}" 2>/dev/null || true
     fi
   done
-  wait "${API_PID:-}" "${WEB_PID:-}" 2>/dev/null || true
+  wait "${API_PID:-}" "${WORKER_PID:-}" "${WEB_PID:-}" 2>/dev/null || true
   exit "${exit_code}"
 }
 trap cleanup EXIT INT TERM
@@ -65,6 +67,10 @@ trap cleanup EXIT INT TERM
 echo "Starting API from main.py on http://127.0.0.1:8000 ..."
 "${PYTHON_BIN}" "${ROOT_DIR}/main.py" >"${LOG_DIR}/api.log" 2>&1 &
 API_PID=$!
+
+echo "Starting background worker..."
+(cd "${ROOT_DIR}/apps/api" && "${PYTHON_BIN}" -m celery -A app.workers.celery_app worker --loglevel=INFO --hostname=career-pilot@%h) >"${LOG_DIR}/worker.log" 2>&1 &
+WORKER_PID=$!
 
 api_ready=false
 for _ in {1..60}; do
@@ -95,15 +101,17 @@ echo "  Frontend: http://127.0.0.1:3000"
 echo "  API:      http://127.0.0.1:8000"
 echo "  API docs: http://127.0.0.1:8000/api/v1/docs"
 echo ""
-echo "Logs: ${LOG_DIR}/api.log and ${LOG_DIR}/web.log"
+echo "Logs: ${LOG_DIR}/api.log, ${LOG_DIR}/worker.log, and ${LOG_DIR}/web.log"
 echo "Press Ctrl+C to stop the application servers."
 
-while kill -0 "${API_PID}" 2>/dev/null && kill -0 "${WEB_PID}" 2>/dev/null; do
+while kill -0 "${API_PID}" 2>/dev/null && kill -0 "${WORKER_PID}" 2>/dev/null && kill -0 "${WEB_PID}" 2>/dev/null; do
   sleep 1
 done
 
 if ! kill -0 "${API_PID}" 2>/dev/null; then
   echo "API stopped unexpectedly. See ${LOG_DIR}/api.log" >&2
+elif ! kill -0 "${WORKER_PID}" 2>/dev/null; then
+  echo "Worker stopped unexpectedly. See ${LOG_DIR}/worker.log" >&2
 else
   echo "Frontend stopped unexpectedly. See ${LOG_DIR}/web.log" >&2
 fi

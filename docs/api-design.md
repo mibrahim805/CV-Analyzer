@@ -17,14 +17,25 @@ Browsers receive a short-lived access token and rotating opaque refresh token in
 | `GET/PATCH /users/me/preferences` | typed career preference schema | preferences |
 | `DELETE /users/me` | password/re-auth confirmation | `202` deletion workflow |
 
-## Documents (Phase 1)
+## Documents (Phase 1 + Phase 2 extraction)
 
 - `POST /cv-documents/uploads`: `{filename, media_type, byte_size, sha256, label?}` → `201 {document,version,upload:{url,method,headers,expires_at}}`. The API rejects extensions/media types outside PDF/DOCX, unsafe names, duplicate active idempotency keys, and configured size bounds.
 - `POST /cv-documents/{document_id}/versions/{version_id}/complete`: `{sha256,byte_size}` → `202 Version(status="quarantined")`; server HEAD-validates object metadata before enqueueing scan.
 - `GET /cv-documents?cursor&limit`, `GET /cv-documents/{id}`, `GET /cv-documents/{id}/versions/{version_id}`: owner-scoped metadata and processing status.
+- `GET /cv-documents/{id}/versions/{version_id}/extraction`: owner-scoped extraction status and non-sensitive metadata (`ready`, `needs_ocr`, or an explicit failure code); extracted text remains in private object storage.
+- `POST /cv-documents/{id}/versions/{version_id}/analyze`: runs the transparent foundation review when extraction is `ready`; returns explicit checks and recommendations, never an ATS prediction or fabricated AI output.
 - `POST /cv-documents/{id}/versions`: begin another immutable version.
 - `DELETE /cv-documents/{id}`: `202`, marks unavailable and enqueues purge.
 - `POST /cv-documents/{id}/versions/{version_id}/download`: creates a brief presigned clean-object URL only when authorization and clean state pass.
+
+## Job discovery (Phase 3 foundation)
+
+- `POST /job-searches`: accepts target roles, locations, work arrangement, experience, and salary constraints; queues a provider-adapter search and returns `202` with a durable search status.
+- `GET /job-searches` and `GET /job-searches/{id}`: owner-scoped search history and provider status (`unconfigured`, `available`, `partial`, or `unavailable`).
+- `GET /job-searches/{id}/matches`: normalized, deduplicated listings with a 0–100 relevance indicator, matched skills, missing required skills, and formula evidence.
+- `POST /saved-jobs`, `GET /saved-jobs`, `DELETE /saved-jobs/{id}`: owner-scoped saved opportunities with idempotent duplicate saves.
+
+The initial adapters support configured Greenhouse public boards and Lever public postings. No provider configuration produces an explicit empty result rather than fixture or fabricated jobs. Listing links remain the source's original URLs.
 
 Later resources follow the same conventions: `/cv-profiles`, `/cv-analyses`, `/job-searches`, `/job-matches`, `/saved-jobs`, `/conversations/{id}/messages`, `/interviews/{id}/responses`.
 

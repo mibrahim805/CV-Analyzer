@@ -34,3 +34,9 @@ The relevance indicator ranges 0–100 as a normalized weighted coverage of job-
 ## Reliability
 
 Per-provider circuit breakers, bounded retries with jitter, request budgets, encrypted credentials, request correlation, kill switches, and source health dashboards are required. Webhooks are verified and idempotent where available; otherwise scheduled refresh respects quotas. Provider raw data is retained only when licensed and is isolated from prompts until sanitized.
+
+## Phase 3 implementation
+
+The modular-monolith implementation lives in `app/services/job_providers.py`, `app/services/job_matching.py`, and `app/services/job_search.py`. Greenhouse board tokens and Lever site names are comma-separated server settings (`GREENHOUSE_BOARD_TOKENS` and `LEVER_SITE_NAMES`). A Celery task persists each search state and never treats an unconfigured provider as a successful source.
+
+Normalized listings, search queries, matches, and saved jobs are stored in migration `20261026_0003_job_intelligence.py`. The matching formula is versioned as `job_match_v1`; its dimensions are required-skill coverage, role similarity, known location alignment, known work-arrangement alignment, and known experience alignment. Unknown provider fields remain unknown and are not silently scored as failures.

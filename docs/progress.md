@@ -1,6 +1,6 @@
 # Implementation progress
 
-Last updated: 2026-10-24
+Last updated: 2026-10-26
 
 | Milestone | Status | Evidence / next step |
 |---|---|---|
@@ -15,5 +15,7 @@ Last updated: 2026-10-24
 | CI and docs | Complete | GitHub Actions and developer documentation |
 | Runtime service verification | Complete | PostgreSQL/Redis/S3Mock/ClamAV healthy; migration round-trip; API readiness 200 |
 | Auth smoke journey | Complete | Disposable registration returned 201 and cookie-authenticated `/users/me` returned 200; fixture removed |
+| Phase 2 deterministic extraction and foundation review | In progress | PDF/DOCX embedded-text extraction, OCR-required state, durable artifact metadata, extraction status, and transparent CV checks/recommendations are implemented; structured parsing and model-backed analysis are next. |
+| Phase 3 job intelligence foundation | In progress | Greenhouse/Lever provider adapters, normalized listings, durable searches, explainable CV matching, saved jobs, migration `20261026_0003`, and `/dashboard/jobs` are implemented. Configure an approved source before displaying live vacancies. |
 
-“Complete foundation” means the Phase 1 contract and safe boundary exist; extraction, OCR, AI analysis, provider ingestion, and interviews remain intentionally unimplemented until their scheduled phases.
+“Complete foundation” means the Phase 1 contract and safe boundary exist. Phase 2 now adds deterministic extraction; OCR, structured parsing, model-backed analysis, and interviews remain separate milestones. Phase 3 adds the provider and matching boundary; live results still require an approved source configuration.
