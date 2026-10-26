@@ -52,6 +52,50 @@ export type CVAnalysis = {
   generated_at: string;
 };
 
+export type ProfileEvidence = {
+  section: string;
+  quote: string;
+  assertion: "explicit" | "supported" | "uncertain";
+  confidence: number;
+};
+
+export type ProfileSkill = {
+  name: string;
+  normalized_name: string;
+  category: string;
+  assertion: "explicit" | "supported" | "uncertain";
+  evidence: ProfileEvidence[];
+};
+
+export type ProfessionalProfile = {
+  schema_version: string;
+  summary: string | null;
+  skills: ProfileSkill[];
+  experiences: Array<Record<string, unknown>>;
+  education: Array<Record<string, unknown>>;
+  projects: Array<Record<string, unknown>>;
+  certifications: string[];
+  domain_expertise: string[];
+  transferable_skills: ProfileSkill[];
+  roles: Array<{ title: string; rationale: string; confidence: number; evidence: ProfileEvidence[] }>;
+};
+
+export type CVProfessionalProfile = {
+  id: string;
+  version_id: string;
+  status: string;
+  revision: number;
+  profile: ProfessionalProfile | null;
+  provider: string | null;
+  model_name: string | null;
+  prompt_version: string | null;
+  failure_code: string | null;
+  source_text_sha256: string | null;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+};
+
 export type UploadInitiateResponse = {
   document: CVDocument;
   version: CVVersion;
@@ -83,6 +127,34 @@ export async function getCVDocument(documentId: string, signal?: AbortSignal): P
 export async function getCVExtraction(documentId: string, versionId: string, signal?: AbortSignal): Promise<CVExtractionStatus> {
   const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/extraction`, { credentials: "include", signal });
   return parseApiResponse<CVExtractionStatus>(response, "The CV processing status could not be loaded.");
+}
+
+export async function getCVProfessionalProfile(documentId: string, versionId: string, signal?: AbortSignal): Promise<CVProfessionalProfile> {
+  const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/profile`, { credentials: "include", signal });
+  return parseApiResponse<CVProfessionalProfile>(response, "The CV professional profile could not be loaded.");
+}
+
+export async function updateCVProfessionalProfile(documentId: string, versionId: string, profile: ProfessionalProfile): Promise<CVProfessionalProfile> {
+  const token = csrfToken();
+  if (!token) throw new Error("Your session security token is missing. Refresh the page and try again.");
+  const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/profile`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+    body: JSON.stringify({ profile }),
+  });
+  return parseApiResponse<CVProfessionalProfile>(response, "The CV professional profile could not be saved.");
+}
+
+export async function refreshCVProfessionalProfile(documentId: string, versionId: string): Promise<CVProfessionalProfile> {
+  const token = csrfToken();
+  if (!token) throw new Error("Your session security token is missing. Refresh the page and try again.");
+  const response = await fetch(`${apiBaseUrl()}/cv-documents/${documentId}/versions/${versionId}/profile/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-CSRF-Token": token },
+  });
+  return parseApiResponse<CVProfessionalProfile>(response, "The CV profile could not be queued.");
 }
 
 export async function analyzeCV(documentId: string, versionId: string): Promise<CVAnalysis> {
