@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDMixin
@@ -27,6 +28,15 @@ class ProcessingJobStatus(str, enum.Enum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class CVProfileStatus(str, enum.Enum):
+    AWAITING_MODEL = "awaiting_model"
+    PROCESSING = "processing"
+    READY = "ready"
+    NEEDS_REVIEW = "needs_review"
+    FAILED = "failed"
+    STALE = "stale"
 
 
 class CVDocument(UUIDMixin, TimestampMixin, Base):
@@ -65,6 +75,36 @@ class CVVersion(UUIDMixin, TimestampMixin, Base):
     extraction: Mapped["CVExtraction | None"] = relationship(
         back_populates="version", cascade="all, delete-orphan", uselist=False
     )
+    professional_profile: Mapped["CVProfessionalProfile | None"] = relationship(
+        back_populates="version", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class CVProfessionalProfile(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "cv_professional_profiles"
+    __table_args__ = (
+        Index("ix_cv_profiles_status_updated", "status", "updated_at"),
+    )
+
+    version_id: Mapped[UUID] = mapped_column(ForeignKey("cv_versions.id", ondelete="CASCADE"), unique=True)
+    status: Mapped[CVProfileStatus] = mapped_column(
+        Enum(
+            CVProfileStatus,
+            name="cv_profile_status",
+            values_callable=lambda values: [item.value for item in values],
+        ),
+        default=CVProfileStatus.AWAITING_MODEL,
+    )
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    profile: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    provider: Mapped[str | None] = mapped_column(String(64))
+    model_name: Mapped[str | None] = mapped_column(String(120))
+    prompt_version: Mapped[str | None] = mapped_column(String(64))
+    source_text_sha256: Mapped[str | None] = mapped_column(String(64))
+    failure_code: Mapped[str | None] = mapped_column(String(64))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    version: Mapped[CVVersion] = relationship(back_populates="professional_profile")
 
 
 class CVExtraction(UUIDMixin, TimestampMixin, Base):

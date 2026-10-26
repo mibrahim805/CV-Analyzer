@@ -1,5 +1,5 @@
 from app.models.audit import AuditEvent
-from app.models.cv import CVDocument, CVExtraction, CVProcessingJob, CVVersion
+from app.models.cv import CVDocument, CVExtraction, CVProcessingJob, CVProfessionalProfile, CVVersion
 from app.models.interview import (
     InterviewEvaluation,
     InterviewQuestion,
@@ -15,6 +15,7 @@ __all__ = [
     "CVDocument",
     "CVExtraction",
     "CVProcessingJob",
+    "CVProfessionalProfile",
     "CVVersion",
     "InterviewEvaluation",
     "InterviewQuestion",
