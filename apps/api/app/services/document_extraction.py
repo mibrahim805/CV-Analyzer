@@ -4,12 +4,9 @@ OCR deliberately remains a separate capability. A document with no embedded text
 is marked as requiring OCR rather than being guessed or silently discarded.
 """
 
+import re
 from dataclasses import dataclass
 from io import BytesIO
-import re
-
-from docx import Document
-from pypdf import PdfReader
 
 
 class ExtractionError(ValueError):
@@ -37,6 +34,10 @@ def extract_document(content: bytes, media_type: str) -> ExtractionResult:
 
 def _extract_pdf(content: bytes) -> ExtractionResult:
     try:
+        from pypdf import PdfReader
+    except ImportError as exc:
+        raise ExtractionError("extractor_unavailable", "PDF extraction is not available on this worker.") from exc
+    try:
         reader = PdfReader(BytesIO(content), strict=False)
     except Exception as exc:  # pypdf exposes several parser-specific exception types.
         raise ExtractionError("malformed_document", "The PDF could not be parsed safely.") from exc
@@ -47,7 +48,9 @@ def _extract_pdf(content: bytes) -> ExtractionResult:
         except ExtractionError:
             raise
         except Exception as exc:
-            raise ExtractionError("encrypted_document", "This PDF is encrypted and needs to be unlocked first.") from exc
+            raise ExtractionError(
+                "encrypted_document", "This PDF is encrypted and needs to be unlocked first."
+            ) from exc
 
     pages: list[str] = []
     try:
@@ -62,6 +65,10 @@ def _extract_pdf(content: bytes) -> ExtractionResult:
 
 
 def _extract_docx(content: bytes) -> ExtractionResult:
+    try:
+        from docx import Document
+    except ImportError as exc:
+        raise ExtractionError("extractor_unavailable", "DOCX extraction is not available on this worker.") from exc
     try:
         document = Document(BytesIO(content))
         blocks = [paragraph.text for paragraph in document.paragraphs]

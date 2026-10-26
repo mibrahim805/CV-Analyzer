@@ -3,7 +3,7 @@ from typing import Any
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 from app.api.problems import AppError
 from app.core.config import settings
@@ -65,3 +65,18 @@ def delete_quarantine_object(object_key: str) -> None:
     _client(settings.OBJECT_STORAGE_ENDPOINT).delete_object(
         Bucket=settings.OBJECT_STORAGE_BUCKET_QUARANTINE, Key=object_key
     )
+
+
+def read_document_text(object_key: str) -> str:
+    try:
+        response = _client(settings.OBJECT_STORAGE_ENDPOINT).get_object(
+            Bucket=settings.OBJECT_STORAGE_BUCKET_DOCUMENTS, Key=object_key
+        )
+        return response["Body"].read().decode("utf-8")
+    except (BotoCoreError, KeyError, UnicodeDecodeError) as exc:
+        raise AppError(
+            503,
+            "extracted_text_unavailable",
+            "The extracted CV text is temporarily unavailable.",
+            "Service unavailable",
+        ) from exc
