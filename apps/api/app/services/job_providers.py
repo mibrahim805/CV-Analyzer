@@ -6,6 +6,7 @@ them before anything is persisted or shown to a user.
 
 import html
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Protocol
@@ -72,14 +73,29 @@ def _plain_text(value: str | None) -> str:
     return re.sub(r"\s+", " ", html.unescape(without_tags)).strip()
 
 
-def _request_json(url: str, params: dict[str, str] | None = None) -> Any:
-    try:
-        with httpx.Client(timeout=settings.JOB_PROVIDER_TIMEOUT_SECONDS, follow_redirects=True) as client:
-            response = client.get(url, params=params)
-            response.raise_for_status()
-            return response.json()
-    except (httpx.HTTPError, ValueError):
-        return None
+def _request_json(url: str, params: dict[str, str] | None = None) -> tuple[Any | None, str | None]:
+    attempts = max(1, min(settings.JOB_PROVIDER_MAX_RETRIES + 1, 4))
+    last_error = "provider_error"
+    with httpx.Client(timeout=settings.JOB_PROVIDER_TIMEOUT_SECONDS, follow_redirects=True) as client:
+        for attempt in range(attempts):
+            try:
+                response = client.get(url, params=params)
+                response.raise_for_status()
+                try:
+                    return response.json(), None
+                except ValueError:
+                    return None, "provider_invalid_response"
+            except httpx.TimeoutException:
+                last_error = "provider_timeout"
+            except httpx.HTTPStatusError as exc:
+                last_error = "provider_rate_limited" if exc.response.status_code == 429 else "provider_http_error"
+                if exc.response.status_code < 500 and exc.response.status_code != 429:
+                    return None, last_error
+            except httpx.HTTPError:
+                last_error = "provider_network_error"
+            if attempt + 1 < attempts:
+                time.sleep(min(0.25 * (2**attempt), 1.0))
+    return None, last_error
 
 
 class GreenhouseProvider:
@@ -94,11 +110,16 @@ class GreenhouseProvider:
         if not self.board_tokens:
             return ProviderPage(self.key, error_code="provider_unconfigured")
         jobs: list[ProviderJob] = []
+        errors: list[str] = []
         for board_token in self.board_tokens:
-            payload = _request_json(
+            payload, error_code = _request_json(
                 f"https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs", {"content": "true"}
             )
+            if error_code:
+                errors.append(error_code)
+                continue
             if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
+                errors.append("provider_invalid_response")
                 continue
             for raw in payload["jobs"]:
                 if not isinstance(raw, dict):
@@ -118,7 +139,7 @@ class GreenhouseProvider:
                         source_payload={"provider": self.key, "board_token": board_token},
                     )
                 )
-        return ProviderPage(self.key, jobs=jobs, error_code=None if jobs else "provider_empty")
+        return ProviderPage(self.key, jobs=jobs, error_code=errors[0] if errors else None if jobs else "provider_empty")
 
 
 class LeverProvider:
@@ -133,9 +154,14 @@ class LeverProvider:
         if not self.site_names:
             return ProviderPage(self.key, error_code="provider_unconfigured")
         jobs: list[ProviderJob] = []
+        errors: list[str] = []
         for site_name in self.site_names:
-            payload = _request_json(f"https://api.lever.co/v0/postings/{site_name}", {"mode": "json"})
+            payload, error_code = _request_json(f"https://api.lever.co/v0/postings/{site_name}", {"mode": "json"})
+            if error_code:
+                errors.append(error_code)
+                continue
             if not isinstance(payload, list):
+                errors.append("provider_invalid_response")
                 continue
             for raw in payload:
                 if not isinstance(raw, dict):
@@ -155,7 +181,7 @@ class LeverProvider:
                         source_payload={"provider": self.key, "site_name": site_name},
                     )
                 )
-        return ProviderPage(self.key, jobs=jobs, error_code=None if jobs else "provider_empty")
+        return ProviderPage(self.key, jobs=jobs, error_code=errors[0] if errors else None if jobs else "provider_empty")
 
 
 def _parse_datetime(value: object) -> datetime | None:
