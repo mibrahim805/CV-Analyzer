@@ -40,3 +40,11 @@ Per-provider circuit breakers, bounded retries with jitter, request budgets, enc
 The modular-monolith implementation lives in `app/services/job_providers.py`, `app/services/job_matching.py`, and `app/services/job_search.py`. Greenhouse board tokens and Lever site names are comma-separated server settings (`GREENHOUSE_BOARD_TOKENS` and `LEVER_SITE_NAMES`). A Celery task persists each search state and never treats an unconfigured provider as a successful source.
 
 Normalized listings, search queries, matches, and saved jobs are stored in migration `20261026_0003_job_intelligence.py`. The matching formula is versioned as `job_match_v1`; its dimensions are required-skill coverage, role similarity, known location alignment, known work-arrangement alignment, and known experience alignment. Unknown provider fields remain unknown and are not silently scored as failures.
+
+## CV profile dependency
+
+Personalized searches are profile-bound. Deterministic extraction must complete first, then the background `build_cv_profile` task creates a validated `cv_professional_profiles` snapshot from the configured AI model. The search request stores the selected CV version, profile id, and profile revision; the worker refuses to rank jobs from raw CV text when a validated profile is unavailable. Users can review and edit role paths and skills through the protected profile endpoint; additions without source evidence are retained as `uncertain` and do not count as verified qualifications. Configure `AI_PROVIDER`, `AI_API_KEY`, and `AI_MODEL_NAME` to enable model-backed profile generation.
+
+## Search cancellation
+
+In-flight searches can be stopped through `POST /job-searches/{search_id}/cancel`. The endpoint is ownership- and CSRF-protected, records a terminal `cancelled` state, and the worker checks that state before persisting provider results. A provider request already in progress may finish at the network layer, but its results are discarded when cancellation is observed.
