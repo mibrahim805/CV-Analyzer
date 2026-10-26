@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { apiBaseUrl } from "@/lib/api";
 
 type Mode = "login" | "register";
 
@@ -20,8 +21,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       ? { email: data.get("email"), password: data.get("password"), display_name: data.get("display_name"), terms_version: "2026-10-24" }
       : { email: data.get("email"), password: data.get("password") };
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL
-        ?? `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+      const apiBase = apiBaseUrl();
       const response = await fetch(`${apiBase}/auth/${mode}`, {
         method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
@@ -29,7 +29,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         const problem = await response.json().catch(() => null) as { detail?: string } | null;
         throw new Error(problem?.detail ?? "We could not complete that request.");
       }
-      router.push("/dashboard");
+      const next = new URLSearchParams(window.location.search).get("next");
+      const destination = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+      router.push(destination);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "We could not complete that request.");
