@@ -27,6 +27,7 @@ class JobSearchStatus(str, enum.Enum):
     SUCCEEDED = "succeeded"
     PARTIAL = "partial"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class JobSource(UUIDMixin, TimestampMixin, Base):
@@ -37,7 +38,12 @@ class JobSource(UUIDMixin, TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(120))
     terms_url: Mapped[str] = mapped_column(String(512))
     status: Mapped[JobSourceStatus] = mapped_column(
-        Enum(JobSourceStatus, name="job_source_status"), default=JobSourceStatus.ACTIVE
+        Enum(
+            JobSourceStatus,
+            name="job_source_status",
+            values_callable=lambda values: [item.value for item in values],
+        ),
+        default=JobSourceStatus.ACTIVE,
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_health_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -73,7 +79,12 @@ class JobListing(UUIDMixin, TimestampMixin, Base):
     last_verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     fingerprint: Mapped[str] = mapped_column(String(64))
     status: Mapped[JobListingStatus] = mapped_column(
-        Enum(JobListingStatus, name="job_listing_status"), default=JobListingStatus.ACTIVE
+        Enum(
+            JobListingStatus,
+            name="job_listing_status",
+            values_callable=lambda values: [item.value for item in values],
+        ),
+        default=JobListingStatus.ACTIVE,
     )
     source_payload: Mapped[dict[str, object] | None] = mapped_column(JSONB)
 
@@ -88,6 +99,9 @@ class JobSearchQuery(UUIDMixin, TimestampMixin, Base):
     )
 
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    cv_version_id: Mapped[UUID | None] = mapped_column(ForeignKey("cv_versions.id", ondelete="SET NULL"))
+    cv_profile_id: Mapped[UUID | None] = mapped_column(ForeignKey("cv_professional_profiles.id", ondelete="SET NULL"))
+    cv_profile_revision: Mapped[int | None] = mapped_column(Integer)
     target_roles: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list)
     locations: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list)
     work_arrangements: Mapped[list[str]] = mapped_column(ARRAY(String(32)), default=list)
@@ -97,7 +111,12 @@ class JobSearchQuery(UUIDMixin, TimestampMixin, Base):
     salary_currency: Mapped[str | None] = mapped_column(String(3))
     include_salary_unknown: Mapped[bool] = mapped_column(Boolean, default=True)
     status: Mapped[JobSearchStatus] = mapped_column(
-        Enum(JobSearchStatus, name="job_search_status"), default=JobSearchStatus.QUEUED
+        Enum(
+            JobSearchStatus,
+            name="job_search_status",
+            values_callable=lambda values: [item.value for item in values],
+        ),
+        default=JobSearchStatus.QUEUED,
     )
     provider_status: Mapped[str] = mapped_column(String(32), default="queued")
     result_count: Mapped[int] = mapped_column(Integer, default=0)
