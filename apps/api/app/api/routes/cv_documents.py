@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query, status
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +27,7 @@ from app.schemas.cv import (
     UploadInitiateResponse,
 )
 from app.services.cv_evaluation import evaluate_cv_text
-from app.services.object_storage import create_upload_url, read_document_text, verify_quarantine_object
+from app.services.object_storage import create_upload_url, read_document_text, read_original_document, verify_quarantine_object
 
 router = APIRouter(prefix="/cv-documents", tags=["CV documents"], dependencies=[Depends(require_csrf)])
 
@@ -175,6 +177,41 @@ async def get_extraction_status(
         status=version.status.value,
         failure_code=version.failure_code,
         extraction=extraction,
+    )
+
+
+@router.get("/{document_id}/versions/{version_id}/download")
+async def download_original(
+    document_id: UUID,
+    version_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Return the private original only after ownership and malware processing checks."""
+    await _owned_document(db, document_id, user.id)
+    version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
+    if version is None:
+        raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
+    if version.status not in {
+        CVVersionStatus.CLEAN,
+        CVVersionStatus.EXTRACTING,
+        CVVersionStatus.NEEDS_OCR,
+        CVVersionStatus.READY,
+        CVVersionStatus.EXTRACTION_FAILED,
+    }:
+        raise AppError(409, "cv_not_available", "The original CV is not available until security processing succeeds.", "CV not available")
+
+    content = read_original_document(version.object_key)
+    safe_name = Path(version.original_name).name.replace('"', "").replace("\r", "").replace("\n", "") or "cv"
+    disposition = f"inline; filename=\"{safe_name}\"; filename*=UTF-8''{quote(safe_name)}"
+    return Response(
+        content=content,
+        media_type=version.media_type,
+        headers={
+            "Content-Disposition": disposition,
+            "Content-Length": str(len(content)),
+            "Cache-Control": "private, no-store",
+        },
     )
 
 

@@ -80,3 +80,19 @@ def read_document_text(object_key: str) -> str:
             "The extracted CV text is temporarily unavailable.",
             "Service unavailable",
         ) from exc
+
+
+def read_original_document(object_key: str) -> bytes:
+    """Read a scanned original for an authenticated, controlled download."""
+    try:
+        response = _client(settings.OBJECT_STORAGE_ENDPOINT).get_object(
+            Bucket=settings.OBJECT_STORAGE_BUCKET_DOCUMENTS, Key=object_key
+        )
+        return response["Body"].read()
+    except (BotoCoreError, KeyError) as exc:
+        raise AppError(
+            503,
+            "cv_document_unavailable",
+            "The original CV is temporarily unavailable.",
+            "Service unavailable",
+        ) from exc

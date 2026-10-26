@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import { useCurrentUser } from "@/components/app-shell";
 import { apiBaseUrl, csrfToken } from "@/lib/api";
+import { cvDownloadUrl } from "@/lib/cv-api";
 
 const MAX_CV_BYTES = 10 * 1024 * 1024;
 const MEDIA_TYPES: Record<string, string> = {
@@ -61,6 +62,7 @@ export default function DashboardPage() {
   const displayName = user?.profile.display_name?.trim() || user?.email.split("@")[0] || "there";
   const isUploading = uploadState === "hashing" || uploadState === "uploading" || uploadState === "scanning";
   const heroState = deriveHeroState({ cvLoading, uploadedFile, extractionStatus, uploadState, analysis });
+  const canOpenCv = Boolean(uploadedDocumentId && uploadedVersionId && ["clean", "extracting", "needs_ocr", "ready", "extraction_failed"].includes(extractionStatus ?? ""));
 
   useEffect(() => {
     if (!user) {
@@ -209,7 +211,7 @@ export default function DashboardPage() {
       <section id="cv-library" className="mt-12 scroll-mt-28">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-black uppercase tracking-[.2em] text-accent">Your documents</p><h2 className="mt-2 text-2xl font-black tracking-[-.03em] text-ink">CV library</h2></div><button type="button" onClick={openFilePicker} disabled={isUploading} className="dashboard-focus inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-line/80 bg-panel px-4 text-sm font-black text-ink transition-colors hover:border-accent/60 disabled:opacity-50"><UploadCloud className="size-4 text-accent" /> Upload a new CV</button></div>
         <div className="premium-card mt-5 overflow-hidden rounded-2xl border border-line/80">
-          {uploadedFile ? <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-center gap-4"><span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent"><FileSearch className="size-5" /></span><div><p className="font-black text-ink">{uploadedFile}</p><p className="mt-1 text-xs text-muted">Private storage · {formatStatus(extractionStatus)}</p></div></div><span className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider sm:self-auto ${heroState === "failed" ? "border-red-300/30 text-red-300" : heroState === "processing" ? "border-amber/30 text-amber" : "border-accent/30 text-accent"}`}><span className="size-1.5 rounded-full bg-current" /> {heroState === "complete" ? "Analysis complete" : formatStatus(extractionStatus)}</span></div> : <div className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center"><span className="grid size-11 place-items-center rounded-xl bg-blue/10 text-blue"><FileUp className="size-5" /></span><div><p className="font-black text-ink">No CV uploaded yet</p><p className="mt-1 text-sm text-muted">Add a PDF or DOCX to unlock personalized career guidance.</p></div></div>}
+          {uploadedFile ? <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex min-w-0 items-center gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><FileSearch className="size-5" /></span><div className="min-w-0"><p className="truncate font-black text-ink" title={uploadedFile}>{uploadedFile}</p><p className="mt-1 text-xs text-muted">Private storage · {formatStatus(extractionStatus)}</p></div></div><div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">{canOpenCv && uploadedDocumentId && uploadedVersionId && <a href={cvDownloadUrl(uploadedDocumentId, uploadedVersionId)} target="_blank" rel="noreferrer" className="dashboard-focus inline-flex items-center rounded-xl border border-blue/30 bg-blue/10 px-3 py-2 text-xs font-black text-blue hover:bg-blue/15">Open original</a>}<span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${heroState === "failed" ? "border-red-300/30 text-red-300" : heroState === "processing" ? "border-amber/30 text-amber" : "border-accent/30 text-accent"}`}><span className="size-1.5 rounded-full bg-current" /> {heroState === "complete" ? "Analysis complete" : formatStatus(extractionStatus)}</span></div></div> : <div className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center"><span className="grid size-11 place-items-center rounded-xl bg-blue/10 text-blue"><FileUp className="size-5" /></span><div><p className="font-black text-ink">No CV uploaded yet</p><p className="mt-1 text-sm text-muted">Add a PDF or DOCX to unlock personalized career guidance.</p></div></div>}
         </div>
       </section>
 
