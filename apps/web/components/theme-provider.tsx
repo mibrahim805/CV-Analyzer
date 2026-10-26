@@ -6,7 +6,7 @@ type Theme = "light" | "dark";
 type ThemeContextValue = { theme: Theme; toggleTheme: () => void };
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: "light",
+  theme: "dark",
   toggleTheme: () => undefined,
 });
 
@@ -16,12 +16,11 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("careerpilot-theme");
-    const systemTheme: Theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    const nextTheme: Theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : systemTheme;
+    const nextTheme: Theme = savedTheme === "dark" || savedTheme === "light" ? savedTheme : "dark";
     applyTheme(nextTheme);
     setTheme(nextTheme);
   }, []);

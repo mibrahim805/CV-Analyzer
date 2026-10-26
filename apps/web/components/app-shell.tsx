@@ -1,20 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { Bot, BriefcaseBusiness, FileText, LayoutDashboard, MessageSquareText, Moon, Settings, Sun } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Brand } from "@/components/brand";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fetchCurrentUser, type CurrentUser } from "@/lib/current-user";
-import { useTheme } from "@/components/theme-provider";
-
-const items = [
-  [LayoutDashboard, "Overview", "/dashboard"],
-  [FileText, "CVs", "/dashboard/cvs"],
-  [BriefcaseBusiness, "Opportunities", "/dashboard/jobs"],
-  [MessageSquareText, "Coach", "/dashboard/interviews"],
-  [Bot, "Assistant", "/dashboard/assistant"],
-] as const;
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return <UserProvider><Shell>{children}</Shell></UserProvider>;
@@ -47,21 +36,22 @@ function UserProvider({ children }: { children: React.ReactNode }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { user } = useCurrentUser();
-  const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const displayName = user?.profile.display_name?.trim() || user?.email.split("@")[0] || "Account";
-  const initials = displayName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+  const initials = useMemo(
+    () => displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase(),
+    [displayName],
+  );
+  const dashboardUser = { displayName, email: user?.email ?? "Secure workspace", initials };
 
-  return <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[244px_1fr]"><aside className="hidden border-r bg-panel px-5 py-7 lg:flex lg:flex-col"><Brand/><nav className="mt-12 space-y-1" aria-label="Workspace">{items.map(([Icon,label,href]) => { const active = href === "/dashboard" ? pathname === href : pathname.startsWith(href); return <Link key={label} href={href} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold ${active ? "bg-ink text-canvas" : "text-muted hover:bg-canvas hover:text-ink"}`}><Icon className="size-[18px]"/>{label}</Link>; })}</nav><Link href="/dashboard/settings" className="mt-auto flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-muted hover:bg-canvas hover:text-ink"><Settings className="size-[18px]"/>Settings</Link></aside><div><header className="flex h-20 items-center justify-between border-b bg-panel/80 px-5 backdrop-blur sm:px-8"><div className="lg:hidden"><Brand/></div><p className="hidden text-sm font-semibold text-muted lg:block">Personal career workspace</p><div className="flex items-center gap-3"><ThemeToggle/><button className="grid size-10 place-items-center rounded-full bg-accent text-sm font-black text-accent-ink" aria-label={`Open ${displayName} account menu`}>{initials || "??"}</button></div></header><main className="px-5 py-8 sm:px-8 lg:px-12 lg:py-12">{children}</main></div><nav className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t bg-panel/95 px-2 py-2 backdrop-blur lg:hidden" aria-label="Mobile workspace">{items.slice(0,5).map(([Icon,label,href]) => { const active = href === "/dashboard" ? pathname === href : pathname.startsWith(href); return <Link key={label} href={href} className={`flex min-w-14 flex-col items-center gap-1 rounded-lg p-1.5 text-[10px] font-bold ${active ? "text-ink" : "text-muted"}`}><Icon className="size-5"/>{label}</Link>; })}</nav></div>;
-}
-
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  const isDark = theme === "dark";
-  return <button type="button" onClick={toggleTheme} aria-pressed={isDark} aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"} title={isDark ? "Switch to light theme" : "Switch to dark theme"} className="grid size-10 place-items-center rounded-full border bg-canvas text-ink transition-colors hover:bg-ink hover:text-canvas">{isDark ? <Sun className="size-4"/> : <Moon className="size-4"/>}</button>;
+  return (
+    <div className="dashboard-app-shell min-h-screen lg:grid lg:grid-cols-[255px_1fr]">
+      {mobileOpen && <button type="button" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden" aria-label="Close navigation overlay" />}
+      <DashboardSidebar user={dashboardUser} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <div className="min-w-0">
+        <DashboardHeader displayName={displayName} initials={initials} onOpenMenu={() => setMobileOpen(true)} />
+        <main className="px-5 py-7 sm:px-8 sm:py-9 lg:px-10 lg:py-10">{children}</main>
+      </div>
+    </div>
+  );
 }
