@@ -18,5 +18,6 @@ dist/
 .DS_Store
 *.log
 *.tsbuildinfo
+.run/
 .idea/workspace.xml
 .idea/shelf/

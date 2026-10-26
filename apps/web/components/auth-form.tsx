@@ -38,7 +38,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <form className="mt-8 space-y-5" onSubmit={submit}>
-      {mode === "register" && <Field label="Name" name="display_name" autoComplete="name" placeholder="Ayesha Khan" />}
+      {mode === "register" && <Field label="Name" name="display_name" autoComplete="name" placeholder="Your name" />}
       <Field label="Email" name="email" type="email" autoComplete="email" placeholder="you@example.com" />
       <Field label="Password" name="password" type="password" autoComplete={mode === "register" ? "new-password" : "current-password"} hint={mode === "register" ? "At least 12 characters with upper, lower, and numeric text." : undefined} />
       {error && <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-700">{error}</div>}
