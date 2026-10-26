@@ -39,3 +39,20 @@ def test_matching_is_explainable_and_reports_missing_skills() -> None:
     assert matched == ["fastapi", "python"]
     assert "postgresql" in missing
     assert evidence["formula_version"] == "job_match_v1"
+
+
+def test_matching_uses_profile_roles_and_excludes_uncertain_skills() -> None:
+    job = normalize_provider_job(sample_job())
+    assert job is not None
+    profile = {
+        "skills": [
+            {"name": "Python", "normalized_name": "python", "assertion": "explicit"},
+            {"name": "Postgres", "normalized_name": "postgresql", "assertion": "uncertain"},
+        ],
+        "roles": [{"title": "Python API Developer"}],
+    }
+    score, matched, missing, evidence = score_job(job, SearchCriteria(target_roles=()), profile)
+    assert score > 0
+    assert matched == ["python"]
+    assert "postgresql" in missing
+    assert evidence["profile_uncertain_skills"] == ["postgresql"]

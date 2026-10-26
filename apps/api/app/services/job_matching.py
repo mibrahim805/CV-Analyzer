@@ -1,6 +1,7 @@
 """Normalize provider jobs and calculate transparent relevance indicators."""
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from urllib.parse import urlparse
@@ -91,10 +92,50 @@ def _overlap(left: str, right: str) -> bool:
     return bool(left_words & right_words)
 
 
+def _profile_facts(profile: Mapping[str, object] | str) -> tuple[set[str], list[str], list[str]]:
+    if isinstance(profile, str):
+        return set(_skills(profile)), [], []
+    skills: set[str] = set()
+    uncertain: set[str] = set()
+    for collection_name in ("skills", "transferable_skills"):
+        collection = profile.get(collection_name, [])
+        if not isinstance(collection, list):
+            continue
+        for item in collection:
+            if not isinstance(item, Mapping):
+                continue
+            name = str(item.get("normalized_name") or item.get("name") or "").strip().lower()
+            if not name:
+                continue
+            if item.get("assertion") == "uncertain":
+                uncertain.add(name)
+            else:
+                skills.add(name)
+    projects = profile.get("projects", [])
+    if isinstance(projects, list):
+        for project in projects:
+            if not isinstance(project, Mapping):
+                continue
+            technologies = project.get("technologies", [])
+            if not isinstance(technologies, list):
+                continue
+            for item in technologies:
+                if not isinstance(item, Mapping):
+                    continue
+                name = str(item.get("normalized_name") or item.get("name") or "").strip().lower()
+                if name and item.get("assertion") != "uncertain":
+                    skills.add(name)
+    roles: list[str] = []
+    raw_roles = profile.get("roles", [])
+    if isinstance(raw_roles, list):
+        roles = [str(item.get("title", "")).strip() for item in raw_roles if isinstance(item, Mapping) and item.get("title")]
+    return skills, roles, sorted(uncertain)
+
+
 def score_job(
-    job: NormalizedJob, criteria: SearchCriteria, cv_text: str
+    job: NormalizedJob, criteria: SearchCriteria, candidate_profile: Mapping[str, object] | str
 ) -> tuple[int, list[str], list[str], dict[str, object]]:
-    cv_skills = set(_skills(cv_text))
+    cv_skills, profile_roles, uncertain_skills = _profile_facts(candidate_profile)
     required = set(job.required_skills)
     optional = set(job.optional_skills)
     matched = sorted((required | optional) & cv_skills)
@@ -102,7 +143,7 @@ def score_job(
     skill_score = 0.0 if not required else (len(required & cv_skills) / len(required)) * 50
     if not required and optional:
         skill_score = (len(optional & cv_skills) / len(optional)) * 35
-    role_score = 20 if any(_overlap(job.title, role) for role in criteria.target_roles) else 0
+    role_score = 20 if any(_overlap(job.title, role) for role in [*criteria.target_roles, *profile_roles]) else 0
     location_score = 10 if not criteria.locations or not job.location or any(
         _overlap(job.location, location) for location in criteria.locations
     ) else 0
@@ -125,6 +166,8 @@ def score_job(
         "notes": [
             "Relevance indicator only; it is not a prediction of hiring success.",
             "Unknown provider fields are not treated as a mismatch.",
+            "Only explicit or responsibility-supported profile skills contribute to qualification coverage; uncertain skills are excluded.",
         ],
+        "profile_uncertain_skills": uncertain_skills,
     }
     return score, matched, missing, evidence
