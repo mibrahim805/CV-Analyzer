@@ -11,8 +11,12 @@ export default {
         muted: "hsl(var(--muted))",
         line: "hsl(var(--line))",
         panel: "hsl(var(--panel))",
+        "panel-elevated": "hsl(var(--panel-elevated))",
         accent: "hsl(var(--accent))",
-        "accent-ink": "hsl(var(--accent-ink))"
+        "accent-ink": "hsl(var(--accent-ink))",
+        blue: "hsl(var(--blue))",
+        amber: "hsl(var(--amber))",
+        violet: "hsl(var(--violet))",
       },
       boxShadow: { soft: "0 18px 60px rgba(11, 28, 27, .10)" },
       fontFamily: {

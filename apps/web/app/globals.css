@@ -8,18 +8,26 @@
   --muted: 167 9% 42%;
   --line: 160 13% 86%;
   --panel: 45 40% 99%;
+  --panel-elevated: 45 35% 100%;
   --accent: 166 71% 35%;
   --accent-ink: 160 65% 96%;
+  --blue: 220 100% 66%;
+  --amber: 39 96% 62%;
+  --violet: 265 92% 76%;
 }
 
 .dark {
-  --canvas: 174 24% 7%;
-  --ink: 150 25% 94%;
-  --muted: 165 10% 66%;
-  --line: 168 14% 19%;
-  --panel: 172 20% 10%;
-  --accent: 164 61% 49%;
-  --accent-ink: 172 30% 8%;
+  --canvas: 220 57% 7%;
+  --ink: 216 50% 97%;
+  --muted: 214 25% 71%;
+  --line: 216 28% 23%;
+  --panel: 216 43% 13%;
+  --panel-elevated: 216 38% 17%;
+  --accent: 161 79% 47%;
+  --accent-ink: 220 57% 7%;
+  --blue: 220 100% 66%;
+  --amber: 39 96% 62%;
+  --violet: 265 92% 76%;
 }
 
 * { border-color: hsl(var(--line)); }
@@ -28,6 +36,116 @@ html.dark { color-scheme: dark; }
 html { scroll-behavior: smooth; }
 body { background: hsl(var(--canvas)); color: hsl(var(--ink)); font-family: Manrope, "Avenir Next", "Segoe UI", sans-serif; }
 ::selection { background: hsl(var(--accent) / .22); }
+
+.dashboard-app-shell {
+  background:
+    radial-gradient(circle at 82% -10%, hsl(var(--blue) / .08), transparent 32rem),
+    hsl(var(--canvas));
+}
+
+.dashboard-sidebar {
+  background: hsl(var(--panel) / .96);
+  border-color: hsl(var(--line));
+}
+
+.dashboard-header {
+  background: hsl(var(--panel) / .78);
+  border-color: hsl(var(--line));
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-hero {
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 77% 20%, hsl(var(--blue) / .22), transparent 25rem),
+    radial-gradient(circle at 42% 110%, hsl(var(--violet) / .16), transparent 24rem),
+    linear-gradient(120deg, hsl(216 45% 12%), hsl(220 48% 15%) 52%, hsl(214 48% 19%));
+}
+
+.dashboard-hero::before {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: radial-gradient(hsl(216 100% 90% / .36) .7px, transparent .7px);
+  background-size: 5rem 5rem;
+  content: "";
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+  opacity: .32;
+}
+
+.dashboard-hero::after {
+  position: absolute;
+  inset: auto -8% -42% 25%;
+  z-index: -1;
+  height: 75%;
+  border-radius: 50%;
+  background: linear-gradient(180deg, hsl(var(--blue) / .14), transparent 70%);
+  filter: blur(24px);
+  content: "";
+}
+
+.hero-landscape {
+  position: absolute;
+  right: -8%;
+  bottom: -1px;
+  width: 68%;
+  height: 47%;
+  z-index: -1;
+  background: linear-gradient(145deg, hsl(225 38% 21%), hsl(215 48% 8%));
+  clip-path: polygon(0 100%, 0 55%, 12% 62%, 23% 30%, 31% 50%, 45% 9%, 55% 45%, 67% 20%, 76% 60%, 86% 37%, 100% 57%, 100% 100%);
+  opacity: .88;
+}
+
+.hero-landscape::after {
+  position: absolute;
+  right: 16%;
+  bottom: 18%;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 999px;
+  background: hsl(var(--blue) / .2);
+  box-shadow: 0 0 5rem 2rem hsl(var(--blue) / .18);
+  content: "";
+}
+
+.hero-orbit {
+  position: absolute;
+  right: 11%;
+  top: 14%;
+  width: 11rem;
+  height: 11rem;
+  border: 1px solid hsl(216 100% 87% / .16);
+  border-radius: 999px;
+  transform: rotate(-24deg);
+}
+
+.hero-orbit::after {
+  position: absolute;
+  right: 10%;
+  top: 12%;
+  width: .45rem;
+  height: .45rem;
+  border-radius: 999px;
+  background: hsl(var(--accent));
+  box-shadow: 0 0 1.5rem hsl(var(--accent) / .8);
+  content: "";
+}
+
+.premium-card {
+  background: linear-gradient(145deg, hsl(var(--panel)), hsl(var(--panel-elevated)));
+  box-shadow: 0 20px 55px hsl(220 60% 3% / .17);
+}
+
+.premium-card:hover {
+  border-color: hsl(var(--accent) / .52);
+  transform: translateY(-2px);
+}
+
+.dashboard-focus:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 3px;
+}
 
 .noise {
   background-image: radial-gradient(hsl(var(--ink) / .07) .65px, transparent .65px);
