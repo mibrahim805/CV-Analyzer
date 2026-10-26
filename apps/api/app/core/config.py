@@ -32,8 +32,16 @@ class Settings(BaseSettings):
     MAX_CV_BYTES: int = 10 * 1024 * 1024
     COOKIE_SECURE: bool = False
     JOB_PROVIDER_TIMEOUT_SECONDS: float = 8.0
+    JOB_PROVIDER_MAX_RETRIES: int = 2
+    JOB_SEARCH_TIMEOUT_SECONDS: int = 120
     GREENHOUSE_BOARD_TOKENS: str = ""
     LEVER_SITE_NAMES: str = ""
+    AI_PROVIDER: Literal["none", "openai_compatible"] = "none"
+    AI_API_URL: str = "https://api.openai.com/v1/chat/completions"
+    AI_API_KEY: str = ""
+    AI_MODEL_NAME: str = ""
+    AI_TIMEOUT_SECONDS: float = 30.0
+    AI_PROFILE_PROMPT_VERSION: str = "cv_profile_v1"
 
     @field_validator("APP_SECRET_KEY")
     @classmethod
