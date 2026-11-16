@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from app.api.routes.jobs import _expire_stale_search
 from app.core.config import settings

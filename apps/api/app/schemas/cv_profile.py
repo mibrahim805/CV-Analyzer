@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 Assertion = Literal["explicit", "supported", "uncertain"]
 
 

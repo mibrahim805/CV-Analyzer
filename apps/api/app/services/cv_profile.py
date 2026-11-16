@@ -126,7 +126,8 @@ def generate_professional_profile(source_text: str) -> ProfessionalProfile:
         "Every evidence quote must be copied verbatim from the resume. "
         "Use assertion=explicit only for directly stated facts, "
         "supported only for a reasonable responsibility-based connection, and uncertain when evidence is insufficient. "
-        "Never invent employers, dates, metrics, skills, or qualifications. Suggest roles only when the resume evidence supports them.\n\n"
+        "Never invent employers, dates, metrics, skills, or qualifications. "
+        "Suggest roles only when the resume evidence supports them.\n\n"
         f"JSON schema:\n{schema}\n\nResume text:\n<resume>\n{source_text}\n</resume>"
     )
     try:
