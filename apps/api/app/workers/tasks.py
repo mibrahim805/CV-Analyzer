@@ -303,15 +303,23 @@ def build_cv_profile(_self: Task, version_id: str) -> None:
             generated = generate_professional_profile(source_text)
         except CVProfileError as exc:
             with Session(engine) as db:
-                profile = db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid))
+                profile = db.scalar(
+                    select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid)
+                )
                 if profile is not None:
-                    profile.status = CVProfileStatus.AWAITING_MODEL if exc.code == "ai_provider_unconfigured" else CVProfileStatus.FAILED
+                    profile.status = (
+                        CVProfileStatus.AWAITING_MODEL
+                        if exc.code == "ai_provider_unconfigured"
+                        else CVProfileStatus.FAILED
+                    )
                     profile.failure_code = exc.code
                     db.commit()
             return
 
         with Session(engine) as db:
-            profile = db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid).with_for_update())
+            profile = db.scalar(
+                select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version_uuid).with_for_update()
+            )
             if profile is None:
                 return
             profile.profile = generated.model_dump(mode="json")

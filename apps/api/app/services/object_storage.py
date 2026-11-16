@@ -72,8 +72,11 @@ def read_document_text(object_key: str) -> str:
         response = _client(settings.OBJECT_STORAGE_ENDPOINT).get_object(
             Bucket=settings.OBJECT_STORAGE_BUCKET_DOCUMENTS, Key=object_key
         )
-        return response["Body"].read().decode("utf-8")
-    except (BotoCoreError, KeyError, UnicodeDecodeError) as exc:
+        content = response["Body"].read()
+        if not isinstance(content, bytes):
+            raise TypeError("Object storage returned a non-byte document body")
+        return content.decode("utf-8")
+    except (BotoCoreError, KeyError, TypeError, UnicodeDecodeError) as exc:
         raise AppError(
             503,
             "extracted_text_unavailable",
@@ -88,8 +91,11 @@ def read_original_document(object_key: str) -> bytes:
         response = _client(settings.OBJECT_STORAGE_ENDPOINT).get_object(
             Bucket=settings.OBJECT_STORAGE_BUCKET_DOCUMENTS, Key=object_key
         )
-        return response["Body"].read()
-    except (BotoCoreError, KeyError) as exc:
+        content = response["Body"].read()
+        if not isinstance(content, bytes):
+            raise TypeError("Object storage returned a non-byte document body")
+        return content
+    except (BotoCoreError, KeyError, TypeError) as exc:
         raise AppError(
             503,
             "cv_document_unavailable",

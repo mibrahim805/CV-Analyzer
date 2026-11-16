@@ -142,12 +142,14 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
 ) -> Page[CVDocumentResponse]:
     rows = list(
-        (await db.scalars(
-            select(CVDocument)
-            .where(CVDocument.user_id == user.id, CVDocument.deleted_at.is_(None))
-            .order_by(CVDocument.created_at.desc())
-            .limit(limit + 1)
-        )).all()
+        (
+            await db.scalars(
+                select(CVDocument)
+                .where(CVDocument.user_id == user.id, CVDocument.deleted_at.is_(None))
+                .order_by(CVDocument.created_at.desc())
+                .limit(limit + 1)
+            )
+        ).all()
     )
     has_more = len(rows) > limit
     return Page(data=[CVDocumentResponse.model_validate(row) for row in rows[:limit]], has_more=has_more)
@@ -207,7 +209,9 @@ async def get_professional_profile(
         raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
     profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id))
     if profile is None:
-        raise AppError(409, "profile_not_ready", "The professional profile is still being prepared.", "Profile not ready")
+        raise AppError(
+            409, "profile_not_ready", "The professional profile is still being prepared.", "Profile not ready"
+        )
     return profile
 
 
@@ -223,7 +227,9 @@ async def update_professional_profile(
     version = await db.scalar(select(CVVersion).where(CVVersion.id == version_id, CVVersion.document_id == document_id))
     if version is None:
         raise AppError(404, "version_not_found", "The CV version was not found.", "Not found")
-    profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update())
+    profile = await db.scalar(
+        select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update()
+    )
     if profile is None or profile.status not in {CVProfileStatus.READY, CVProfileStatus.NEEDS_REVIEW}:
         raise AppError(409, "profile_not_ready", "The professional profile is not ready to edit.", "Profile not ready")
     profile.profile = payload.profile.model_dump(mode="json")
@@ -235,7 +241,11 @@ async def update_professional_profile(
     return profile
 
 
-@router.post("/{document_id}/versions/{version_id}/profile/refresh", response_model=CVProfessionalProfileResponse, status_code=202)
+@router.post(
+    "/{document_id}/versions/{version_id}/profile/refresh",
+    response_model=CVProfessionalProfileResponse,
+    status_code=202,
+)
 async def refresh_professional_profile(
     document_id: UUID,
     version_id: UUID,
@@ -250,8 +260,12 @@ async def refresh_professional_profile(
         raise AppError(409, "cv_not_ready", "The CV must finish extraction before profile generation.", "CV not ready")
     extraction = await db.scalar(select(CVExtraction).where(CVExtraction.version_id == version.id))
     if extraction is None:
-        raise AppError(409, "extraction_not_ready", "The extracted CV text is not available yet.", "Extraction not ready")
-    profile = await db.scalar(select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update())
+        raise AppError(
+            409, "extraction_not_ready", "The extracted CV text is not available yet.", "Extraction not ready"
+        )
+    profile = await db.scalar(
+        select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update()
+    )
     if profile is None:
         profile = CVProfessionalProfile(version_id=version.id)
         db.add(profile)
@@ -285,7 +299,12 @@ async def download_original(
         CVVersionStatus.READY,
         CVVersionStatus.EXTRACTION_FAILED,
     }:
-        raise AppError(409, "cv_not_available", "The original CV is not available until security processing succeeds.", "CV not available")
+        raise AppError(
+            409,
+            "cv_not_available",
+            "The original CV is not available until security processing succeeds.",
+            "CV not available",
+        )
 
     content = read_original_document(version.object_key)
     safe_name = Path(version.original_name).name.replace('"', "").replace("\r", "").replace("\n", "") or "cv"

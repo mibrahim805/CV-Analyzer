@@ -9,11 +9,51 @@ from urllib.parse import urlparse
 from app.services.job_providers import ProviderJob, SearchCriteria
 
 KNOWN_SKILLS = {
-    "python", "java", "javascript", "typescript", "go", "rust", "php", "ruby", "c#", "c++",
-    "fastapi", "django", "flask", "react", "next.js", "vue", "angular", "node.js", "express",
-    "postgresql", "postgres", "mysql", "sqlite", "redis", "mongodb", "sql", "graphql", "rest",
-    "docker", "kubernetes", "aws", "azure", "gcp", "terraform", "linux", "git", "ci/cd",
-    "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "spark", "airflow", "kafka",
+    "python",
+    "java",
+    "javascript",
+    "typescript",
+    "go",
+    "rust",
+    "php",
+    "ruby",
+    "c#",
+    "c++",
+    "fastapi",
+    "django",
+    "flask",
+    "react",
+    "next.js",
+    "vue",
+    "angular",
+    "node.js",
+    "express",
+    "postgresql",
+    "postgres",
+    "mysql",
+    "sqlite",
+    "redis",
+    "mongodb",
+    "sql",
+    "graphql",
+    "rest",
+    "docker",
+    "kubernetes",
+    "aws",
+    "azure",
+    "gcp",
+    "terraform",
+    "linux",
+    "git",
+    "ci/cd",
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "tensorflow",
+    "pytorch",
+    "spark",
+    "airflow",
+    "kafka",
 }
 
 
@@ -128,7 +168,9 @@ def _profile_facts(profile: Mapping[str, object] | str) -> tuple[set[str], list[
     roles: list[str] = []
     raw_roles = profile.get("roles", [])
     if isinstance(raw_roles, list):
-        roles = [str(item.get("title", "")).strip() for item in raw_roles if isinstance(item, Mapping) and item.get("title")]
+        roles = [
+            str(item.get("title", "")).strip() for item in raw_roles if isinstance(item, Mapping) and item.get("title")
+        ]
     return skills, roles, sorted(uncertain)
 
 
@@ -144,15 +186,27 @@ def score_job(
     if not required and optional:
         skill_score = (len(optional & cv_skills) / len(optional)) * 35
     role_score = 20 if any(_overlap(job.title, role) for role in [*criteria.target_roles, *profile_roles]) else 0
-    location_score = 10 if not criteria.locations or not job.location or any(
-        _overlap(job.location, location) for location in criteria.locations
-    ) else 0
-    arrangement_score = 10 if not criteria.work_arrangements or not job.work_arrangement or any(
-        _overlap(job.work_arrangement, arrangement) for arrangement in criteria.work_arrangements
-    ) else 0
-    experience_score = 10 if not criteria.experience_levels or not job.experience_level or any(
-        _overlap(job.experience_level, level) for level in criteria.experience_levels
-    ) else 0
+    location_score = (
+        10
+        if not criteria.locations
+        or not job.location
+        or any(_overlap(job.location, location) for location in criteria.locations)
+        else 0
+    )
+    arrangement_score = (
+        10
+        if not criteria.work_arrangements
+        or not job.work_arrangement
+        or any(_overlap(job.work_arrangement, arrangement) for arrangement in criteria.work_arrangements)
+        else 0
+    )
+    experience_score = (
+        10
+        if not criteria.experience_levels
+        or not job.experience_level
+        or any(_overlap(job.experience_level, level) for level in criteria.experience_levels)
+        else 0
+    )
     score = min(100, round(skill_score + role_score + location_score + arrangement_score + experience_score))
     evidence: dict[str, object] = {
         "formula_version": "job_match_v1",
@@ -166,7 +220,8 @@ def score_job(
         "notes": [
             "Relevance indicator only; it is not a prediction of hiring success.",
             "Unknown provider fields are not treated as a mismatch.",
-            "Only explicit or responsibility-supported profile skills contribute to qualification coverage; uncertain skills are excluded.",
+            "Only explicit or responsibility-supported profile skills contribute to qualification coverage; uncertain "
+            "skills are excluded.",
         ],
         "profile_uncertain_skills": uncertain_skills,
     }

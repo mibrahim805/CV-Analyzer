@@ -72,7 +72,9 @@ async def create_job_search(
             )
         )
         if selected_version is None:
-            raise AppError(409, "cv_not_ready", "Select a processed CV before searching for personalized jobs.", "CV not ready")
+            raise AppError(
+                409, "cv_not_ready", "Select a processed CV before searching for personalized jobs.", "CV not ready"
+            )
         selected_profile = await db.scalar(
             select(CVProfessionalProfile).where(
                 CVProfessionalProfile.version_id == selected_version.id,
@@ -94,15 +96,32 @@ async def create_job_search(
         if selected_profile is not None:
             selected_version = await db.get(CVVersion, selected_profile.version_id)
     if selected_profile is None or selected_version is None or not selected_profile.profile:
-        raise AppError(409, "profile_not_ready", "Review your AI-understood CV profile before searching for personalized jobs.", "Profile not ready")
-    profile_roles = [
-        str(role.get("title", "")).strip()
-        for role in (selected_profile.profile.get("roles", []) if isinstance(selected_profile.profile, dict) else [])
-        if isinstance(role, dict) and str(role.get("title", "")).strip()
-    ]
-    target_roles = list(dict.fromkeys([*(role.strip() for role in payload.target_roles if role.strip()), *profile_roles]))
+        raise AppError(
+            409,
+            "profile_not_ready",
+            "Review your AI-understood CV profile before searching for personalized jobs.",
+            "Profile not ready",
+        )
+    profile_roles: list[str] = []
+    profile_data = selected_profile.profile
+    if isinstance(profile_data, dict):
+        raw_roles = profile_data.get("roles", [])
+        if isinstance(raw_roles, list):
+            profile_roles = [
+                str(role.get("title", "")).strip()
+                for role in raw_roles
+                if isinstance(role, dict) and str(role.get("title", "")).strip()
+            ]
+    target_roles = list(
+        dict.fromkeys([*(role.strip() for role in payload.target_roles if role.strip()), *profile_roles])
+    )
     if not target_roles:
-        raise AppError(422, "profile_roles_missing", "The reviewed CV profile does not contain a supported target role yet.", "Role required")
+        raise AppError(
+            422,
+            "profile_roles_missing",
+            "The reviewed CV profile does not contain a supported target role yet.",
+            "Role required",
+        )
     search = JobSearchQuery(
         user_id=user.id,
         cv_version_id=selected_version.id if selected_version else None,
