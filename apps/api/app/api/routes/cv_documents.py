@@ -231,7 +231,9 @@ async def update_professional_profile(
         select(CVProfessionalProfile).where(CVProfessionalProfile.version_id == version.id).with_for_update()
     )
     if profile is None or profile.status not in {CVProfileStatus.READY, CVProfileStatus.NEEDS_REVIEW}:
-        raise AppError(409, "profile_not_ready", "The professional profile is not ready to edit.", "Profile not ready")
+        raise AppError(
+            409, "profile_not_ready", "The professional profile is not ready to edit.", "Profile not ready"
+        )
     profile.profile = payload.profile.model_dump(mode="json")
     profile.revision += 1
     profile.status = CVProfileStatus.NEEDS_REVIEW

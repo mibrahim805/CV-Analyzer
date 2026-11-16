@@ -102,16 +102,17 @@ async def create_job_search(
             "Review your AI-understood CV profile before searching for personalized jobs.",
             "Profile not ready",
         )
-    profile_roles: list[str] = []
-    profile_data = selected_profile.profile
-    if isinstance(profile_data, dict):
-        raw_roles = profile_data.get("roles", [])
-        if isinstance(raw_roles, list):
-            profile_roles = [
-                str(role.get("title", "")).strip()
-                for role in raw_roles
-                if isinstance(role, dict) and str(role.get("title", "")).strip()
-            ]
+    profile_data = selected_profile.profile if isinstance(selected_profile.profile, dict) else {}
+    raw_profile_roles = profile_data.get("roles", [])
+    profile_roles = (
+        [
+            str(role.get("title", "")).strip()
+            for role in raw_profile_roles
+            if isinstance(role, dict) and str(role.get("title", "")).strip()
+        ]
+        if isinstance(raw_profile_roles, list)
+        else []
+    )
     target_roles = list(
         dict.fromkeys([*(role.strip() for role in payload.target_roles if role.strip()), *profile_roles])
     )
