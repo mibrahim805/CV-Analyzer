@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
 import pytest
-from datetime import datetime, timedelta, timezone
 
 from app.api.routes.jobs import _expire_stale_search
 from app.core.config import settings
@@ -51,7 +52,10 @@ def test_provider_timeout_retries_are_bounded(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_unconfigured_provider_is_explicit() -> None:
-    assert job_providers.GreenhouseProvider(()).search(job_providers.SearchCriteria(())).error_code == "provider_unconfigured"
+    assert (
+        job_providers.GreenhouseProvider(()).search(job_providers.SearchCriteria(())).error_code
+        == "provider_unconfigured"
+    )
 
 
 def test_missing_ai_configuration_is_a_terminal_profile_error(monkeypatch: pytest.MonkeyPatch) -> None:

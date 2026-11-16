@@ -124,7 +124,8 @@ class GreenhouseProvider:
             for raw in payload["jobs"]:
                 if not isinstance(raw, dict):
                     continue
-                location = raw.get("location") if isinstance(raw.get("location"), dict) else {}
+                location_value = raw.get("location")
+                location = location_value if isinstance(location_value, dict) else {}
                 jobs.append(
                     ProviderJob(
                         external_id=str(raw.get("id", "")),
@@ -166,7 +167,8 @@ class LeverProvider:
             for raw in payload:
                 if not isinstance(raw, dict):
                     continue
-                categories = raw.get("categories") if isinstance(raw.get("categories"), dict) else {}
+                categories_value = raw.get("categories")
+                categories = categories_value if isinstance(categories_value, dict) else {}
                 jobs.append(
                     ProviderJob(
                         external_id=str(raw.get("id", "")),
