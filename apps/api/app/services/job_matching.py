@@ -128,7 +128,11 @@ def _profile_facts(profile: Mapping[str, object] | str) -> tuple[set[str], list[
     roles: list[str] = []
     raw_roles = profile.get("roles", [])
     if isinstance(raw_roles, list):
-        roles = [str(item.get("title", "")).strip() for item in raw_roles if isinstance(item, Mapping) and item.get("title")]
+        roles = [
+            str(item.get("title", "")).strip()
+            for item in raw_roles
+            if isinstance(item, Mapping) and item.get("title")
+        ]
     return skills, roles, sorted(uncertain)
 
 
@@ -166,7 +170,8 @@ def score_job(
         "notes": [
             "Relevance indicator only; it is not a prediction of hiring success.",
             "Unknown provider fields are not treated as a mismatch.",
-            "Only explicit or responsibility-supported profile skills contribute to qualification coverage; uncertain skills are excluded.",
+            "Only explicit or responsibility-supported profile skills contribute to qualification coverage; "
+            "uncertain skills are excluded.",
         ],
         "profile_uncertain_skills": uncertain_skills,
     }
