@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     DATABASE_URL_SYNC: str = "postgresql+psycopg://career:career@localhost:5432/career"
     REDIS_URL: str = "redis://localhost:6379/0"
     CORS_ORIGINS: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
+        default_factory=lambda: ["http://localhost:3500", "http://127.0.0.1:3500"]
     )
-    WEB_ORIGIN: str = "http://localhost:3000"
+    WEB_ORIGIN: str = "http://localhost:3500"
     ACCESS_TOKEN_TTL_MINUTES: int = 15
     REFRESH_TOKEN_TTL_DAYS: int = 30
     OBJECT_STORAGE_ENDPOINT: str = "http://localhost:9000"

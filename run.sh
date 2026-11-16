@@ -6,6 +6,13 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${ROOT_DIR}/.run"
 mkdir -p "${LOG_DIR}"
 
+if [[ -f "${ROOT_DIR}/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "${ROOT_DIR}/.env"
+  set +a
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required to run the local infrastructure." >&2
   exit 1
@@ -43,8 +50,8 @@ export AI_API_URL="${AI_API_URL:-https://api.openai.com/v1/chat/completions}"
 export AI_API_KEY="${AI_API_KEY:-}"
 export AI_MODEL_NAME="${AI_MODEL_NAME:-}"
 export AI_TIMEOUT_SECONDS="${AI_TIMEOUT_SECONDS:-30}"
-export WEB_ORIGIN="${WEB_ORIGIN:-http://127.0.0.1:3000}"
-export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000/api/v1}"
+export WEB_ORIGIN="${WEB_ORIGIN:-http://127.0.0.1:3500}"
+export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8500/api/v1}"
 
 cd "${ROOT_DIR}"
 
@@ -72,7 +79,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "Starting API from main.py on http://127.0.0.1:8000 ..."
+echo "Starting API from main.py on http://127.0.0.1:8500 ..."
 "${PYTHON_BIN}" "${ROOT_DIR}/main.py" >"${LOG_DIR}/api.log" 2>&1 &
 API_PID=$!
 
@@ -83,7 +90,7 @@ WORKER_PID=$!
 
 api_ready=false
 for _ in {1..60}; do
-  if curl --fail --silent http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then
+  if curl --fail --silent http://127.0.0.1:8500/health/ready >/dev/null 2>&1; then
     api_ready=true
     break
   fi
@@ -100,15 +107,15 @@ if [[ "${api_ready}" != true ]]; then
   exit 1
 fi
 
-echo "Starting frontend on http://127.0.0.1:3000 ..."
-corepack pnpm --filter web dev --hostname 127.0.0.1 --port 3000 >"${LOG_DIR}/web.log" 2>&1 &
+echo "Starting frontend on http://127.0.0.1:3500 ..."
+corepack pnpm --filter web dev --hostname 127.0.0.1 --port 3500 >"${LOG_DIR}/web.log" 2>&1 &
 WEB_PID=$!
 
 echo ""
 echo "CareerPilot is running:"
-echo "  Frontend: http://127.0.0.1:3000"
-echo "  API:      http://127.0.0.1:8000"
-echo "  API docs: http://127.0.0.1:8000/api/v1/docs"
+echo "  Frontend: http://127.0.0.1:3500"
+echo "  API:      http://127.0.0.1:8500"
+echo "  API docs: http://127.0.0.1:8500/api/v1/docs"
 echo ""
 echo "Logs: ${LOG_DIR}/api.log, ${LOG_DIR}/worker.log, and ${LOG_DIR}/web.log"
 echo "Press Ctrl+C to stop the application servers."

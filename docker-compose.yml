@@ -6,8 +6,8 @@ x-api-env: &api-env
   DATABASE_URL: postgresql+asyncpg://career:career@postgres:5432/career
   DATABASE_URL_SYNC: postgresql+psycopg://career:career@postgres:5432/career
   REDIS_URL: redis://redis:6379/0
-  CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
-  WEB_ORIGIN: http://localhost:3000
+  CORS_ORIGINS: '["http://localhost:3500","http://127.0.0.1:3500"]'
+  WEB_ORIGIN: http://localhost:3500
   OBJECT_STORAGE_ENDPOINT: http://object-storage:9090
   OBJECT_STORAGE_PUBLIC_ENDPOINT: http://localhost:9090
   OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY:-career-local}
@@ -75,9 +75,9 @@ services:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       object-storage: {condition: service_healthy}
-    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8000", --reload]
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8500", --reload]
     volumes: [./apps/api:/app]
-    ports: ["8000:8000"]
+    ports: ["8500:8500"]
 
   worker:
     build: {context: ./apps/api}
@@ -92,10 +92,10 @@ services:
   web:
     build: {context: ., dockerfile: apps/web/Dockerfile}
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-      INTERNAL_API_URL: http://api:8000/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:8500/api/v1
+      INTERNAL_API_URL: http://api:8500/api/v1
     depends_on: [api]
-    ports: ["3000:3000"]
+    ports: ["3500:3000"]
 
 volumes:
   postgres-data:

@@ -18,10 +18,10 @@ export function apiBaseUrl(): string {
         // configuration rather than issuing requests to an invalid URL.
       }
     }
-    return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+    return `${window.location.protocol}//${window.location.hostname}:8500/api/v1`;
   }
 
-  return configured ?? "http://localhost:8000/api/v1";
+  return configured ?? "http://localhost:8500/api/v1";
 }
 
 export function csrfToken(): string | null {
