@@ -142,12 +142,14 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
 ) -> Page[CVDocumentResponse]:
     rows = list(
-        (await db.scalars(
-            select(CVDocument)
-            .where(CVDocument.user_id == user.id, CVDocument.deleted_at.is_(None))
-            .order_by(CVDocument.created_at.desc())
-            .limit(limit + 1)
-        )).all()
+        (
+            await db.scalars(
+                select(CVDocument)
+                .where(CVDocument.user_id == user.id, CVDocument.deleted_at.is_(None))
+                .order_by(CVDocument.created_at.desc())
+                .limit(limit + 1)
+            )
+        ).all()
     )
     has_more = len(rows) > limit
     return Page(data=[CVDocumentResponse.model_validate(row) for row in rows[:limit]], has_more=has_more)
